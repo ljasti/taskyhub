@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TaskyHub Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+  <link rel="alternate icon" href="images/favicon.ico">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #020617 100%);
+      color: white;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .brand:hover {
+      opacity: 0.9;
+    }
+
+    .brand img {
+      height: 80px;
+      display: block;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    nav a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    nav a:hover {
+      color: #f97316;
+      background: rgba(249, 115, 22, 0.1);
+    }
+
+    nav a.active {
+      color: #f97316;
+      background: rgba(249, 115, 22, 0.15);
+    }
+
+    button {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      color: #0f172a;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.3);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 12px -2px rgba(249, 115, 22, 0.4);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      padding: 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: linear-gradient(145deg, #111827 0%, #0f172a 100%);
+      padding: 28px;
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(249, 115, 22, 0.3);
+      box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .card h3 {
+      font-size: 1.35rem;
+      margin-bottom: 12px;
+      color: #f9fafb;
+      background: linear-gradient(90deg, #f97316 0%, #fbbf24 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .card p {
+      color: #94a3b8;
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    a.action {
+      color: #f97316;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    a.action:hover {
+      color: #fb923c;
+      gap: 12px;
+    }
+
+    a.action.disabled {
+      color: #64748b;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    a.action.disabled:hover {
+      gap: 8px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      background: #0f172a;
+      color: white;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #f97316;
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    }
+
+    #user-list div {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      color: #e5e7eb;
+    }
+
+    #user-list div:last-child {
+      border-bottom: none;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .welcome-text {
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand" onclick="window.location.href='dashboard.html'">
+      <img src="images/logo.png" alt="TaskyHub logo">
+    </div>
+    <div class="header-right">
+      <nav>
+        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="analytics.html">Analytics</a>
+      </nav>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="grid" id="dashboardGrid">
+    <div class="card" id="automationCard" style="display:none;">
+      <h3>Automation Engine</h3>
+      <a href="http://localhost:5678" target="_blank" class="action">Open n8n →</a>
+    </div>
+    <div class="card" id="analyticsCard" style="display:none;">
+      <h3>Analytics Dashboard</h3>
+      <a href="http://localhost:3000" target="_blank" class="action">Open Grafana →</a>
+    </div>
+
+    <div class="card">
+      <h3>Workflows</h3>
+      <p id="workflows-count" style="font-size:2rem;font-weight:700;color:#f97316;margin:0 0 8px;">Loading...</p>
+      <p style="color:#64748b;font-size:0.9rem;">Workflows are managed in n8n</p>
+    </div>
+
+    <div class="card">
+      <h3>Analytics</h3>
+      <p style="margin-bottom:8px;">TaskyHub analytics are served by the backend monitoring system.</p>
+      <a href="analytics.html" class="action">View Analytics →</a>
+    </div>
+
+    <div class="card">
+      <h3>Subscription Users</h3>
+      <p id="subscription-status" style="font-weight:600;color:#e5e7eb;">Loading subscription details...</p>
+      <div id="user-list" style="margin-top:16px;"></div>
+      <div id="invite-form" style="margin-top:24px;display:none;">
+        <h4 style="margin-bottom:12px;color:#e5e7eb;">Invite User</h4>
+        <input id="invite-name" placeholder="Name">
+        <input id="invite-email" placeholder="Email" type="email">
+        <input id="invite-password" placeholder="Password" type="password">
+        <select id="invite-role">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button onclick="inviteUser()" style="margin-top:8px;">Invite User</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const API_URL = window.TASKYHUB_CONFIG?.API_URL || 'http://localhost:4000/api';
+    const token = localStorage.getItem('tasky_token');
+
+    if (!token) {
+      window.location = 'login.html';
+    }
+
+    async function fetchProfile() {
+      try {
+        const response = await fetch(`${API_URL}/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          localStorage.clear();
+          return window.location = 'login.html';
+        }
+
+        const payload = await response.json();
+        const user = payload.user;
+        const subscription = payload.subscription;
+        
+        document.getElementById('subscription-status').innerText =
+          `Subscription: ${subscription.name} • ${subscription.currentUsers}/${subscription.seatLimit} seats used`;
+
+        if (user.role === 'admin') {
+          document.getElementById('automationCard').style.display = 'block';
+          document.getElementById('analyticsCard').style.display = 'block';
+        }
+
+        if (user.role === 'admin' && subscription.currentUsers < subscription.seatLimit) {
+          document.getElementById('invite-form').style.display = 'block';
+        }
+
+        await fetchUsers();
+      } catch (error) {
+        console.error('Unable to load profile', error);
+        localStorage.clear();
+        window.location = 'login.html';
+      }
+    }
+
+    async function fetchDashboardData() {
+      try {
+        const response = await fetch(`${API_URL}/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || 'Unable to fetch dashboard data');
+        }
+
+        document.getElementById('workflows-count').innerText = payload.workflowCount;
+      } catch (error) {
+        console.error(error);
+        document.getElementById('workflows-count').innerText = '0';
+      }
+    }
+
+    async function fetchUsers() {
+      try {
+        const response = await fetch(`${API_URL}/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || 'Unable to fetch users');
+        }
+
+        const list = payload.users.map(u => `<div>${u.name} (${u.email}) — <span style="color:#f97316;">${u.role}</span></div>`).join('');
+        document.getElementById('user-list').innerHTML = list || '<p style="color:#64748b;">No users found.</p>';
+      } catch (error) {
+        console.error(error);
+        document.getElementById('user-list').innerHTML = '<p style="color:#f87171;">Unable to load users.</p>';
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location = 'login.html';
+    }
+
+    async function inviteUser() {
+      const name = document.getElementById('invite-name').value.trim();
+      const email = document.getElementById('invite-email').value.trim();
+      const password = document.getElementById('invite-password').value;
+      const role = document.getElementById('invite-role').value;
+
+      if (!name || !email || !password) {
+        return alert('Provide name, email, and password for the invite.');
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name, email, password, role }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          return alert(payload.error || 'Invite failed');
+        }
+
+        alert('User invited successfully.');
+        document.getElementById('invite-name').value = '';
+        document.getElementById('invite-email').value = '';
+        document.getElementById('invite-password').value = '';
+        await fetchProfile();
+      } catch (error) {
+        console.error(error);
+        alert('Unable to invite user.');
+      }
+    }
+
+    window.onload = fetchProfile;
+  </script>
+</body>
+</html>

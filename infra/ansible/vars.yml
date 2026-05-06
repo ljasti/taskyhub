@@ -1,0 +1,29 @@
+---
+# Customer and Domain Configuration
+customer_name: besty
+domain_name: besty.amroth.life
+
+# n8n Configuration
+n8n_admin_user: admin
+n8n_admin_password: StrongPassword123!
+n8n_timezone: Asia/Kolkata
+
+# Dashboard Credentials
+admin_username: admin
+admin_password: admin123
+user_username: user
+user_password: user123
+
+# Application paths
+app_base_path: "/opt/{{ customer_name }}"
+n8n_path: "/opt/{{ customer_name }}/n8n"
+ui_path: "/opt/{{ customer_name }}/ui"
+data_path: "/opt/{{ customer_name }}/data"
+
+# Database configuration
+postgres_db: taskyhub
+postgres_user: taskyhub_user
+postgres_password: changeme_db_pwd
+
+grafana_admin_user: admin
+grafana_admin_password: changeme_grafana_admin

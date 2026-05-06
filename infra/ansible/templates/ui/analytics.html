@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>TaskyHub Analytics</title>
+<link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+<link rel="alternate icon" href="images/favicon.ico">
+<style>
+body{margin:0;font-family:system-ui;background:#060b18;color:white;}
+header{padding:18px 24px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#090f1f,#0f172a);border-bottom:1px solid rgba(255,255,255,0.06);}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand img{height:40px;}
+.brand h1{margin:0;font-size:1.1rem;color:#ff8d35;}
+nav a{color:#94a3b8;margin-left:18px;text-decoration:none;}
+.content{padding:24px;}
+.card{background:#111827;padding:20px;border-radius:18px;margin-bottom:18px;border:1px solid rgba(148,163,184,0.08);}
+.placeholder{background:#0f172a;border:1px dashed #334155;padding:22px;border-radius:18px;text-align:center;color:#94a3b8;}
+button{background:#ff7c14;color:#0b1220;border:none;padding:10px 16px;border-radius:12px;cursor:pointer;font-weight:700;}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="brand">
+    <img src="images/logo.png" alt="TaskyHub logo">
+    <div><h1>Analytics</h1></div>
+  </div>
+  <div>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="login.html">Login</a>
+    </nav>
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div class="content">
+  <div class="card">
+    <h3>Analytics design</h3>
+    <p>This page is a TaskyHub analytics placeholder. The intended architecture is backend-driven metrics, not direct Grafana UI embedding.</p>
+  </div>
+
+  <div class="card">
+    <h3>Current status</h3>
+    <p id="status-text">Loading analytics from TaskyHub backend...</p>
+  </div>
+
+  <div class="card placeholder">
+    <p>Workflow success rate, execution time, and customer stats will render here once the TaskyHub analytics API is implemented.</p>
+  </div>
+</div>
+
+<script>
+if(localStorage.getItem("tasky_auth") !== "true") {
+  window.location = "login.html";
+}
+
+function logout(){
+  localStorage.clear();
+  window.location = "login.html";
+}
+
+async function fetchAnalytics() {
+  try {
+    const res = await fetch('/api/analytics/overview');
+    if (!res.ok) throw new Error('API not available');
+    const data = await res.json();
+    document.getElementById('status-text').innerText = 'Analytics loaded: ' + (data.summary || 'summary available');
+  } catch (error) {
+    document.getElementById('status-text').innerText = 'Analytics backend not available yet. Please implement /api/analytics/overview.';
+    console.log('Analytics backend not available', error);
+  }
+}
+
+window.onload = fetchAnalytics;
+</script>
+
+</body>
+</html>

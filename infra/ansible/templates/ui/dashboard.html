@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>TaskyHub Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+<link rel="alternate icon" href="images/favicon.ico">
+<style>
+body{margin:0;font-family:system-ui;background:#060b18;color:white;}
+header{padding:18px 24px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#090f1f,#0f172a);border-bottom:1px solid rgba(255,255,255,0.04);}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand img{height:42px;}
+.brand h1{margin:0;font-size:1.25rem;color:#ff8d35;}
+nav a{color:#94a3b8;margin-left:22px;text-decoration:none;font-weight:500;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;padding:24px;}
+.card{background:#111827;padding:22px;border-radius:18px;border:1px solid rgba(148,163,184,0.06);}
+a.action{color:#ffb86c;text-decoration:none;}
+button{background:#ff7c14;color:#0b1220;border:none;padding:10px 16px;border-radius:12px;cursor:pointer;font-weight:700;}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="brand">
+    <img src="images/logo.png" alt="TaskyHub logo">
+    <div><h1>TaskyHub</h1></div>
+  </div>
+  <div>
+    <nav>
+      <a href="analytics.html">Analytics</a>
+      <a href="login.html">Login</a>
+    </nav>
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div class="grid">
+
+  <div class="card">
+    <h3>Automation Engine</h3>
+    <a href="n8n/" target="_blank">Open n8n</a>
+    <p style="font-size:12px;color:gray;" id="n8nNote"></p>
+  </div>
+
+  <div class="card">
+      <h3>Workflows</h3>
+      <p id="workflows-count">Loading...</p>
+    </div>
+
+    <div class="card">
+      <h3>Analytics</h3>
+      <p id="analytics-note">TaskyHub analytics are served by the backend, not n8n directly.</p>
+    </div>
+
+</div>
+
+<script>
+// AUTH CHECK
+if(localStorage.getItem("tasky_auth") !== "true"){
+    window.location = "login.html";
+}
+
+const role = localStorage.getItem("tasky_role");
+
+// ROLE BASED ACCESS
+if(role !== "admin"){
+    document.getElementById("n8nNote").innerText =
+        "Restricted: Only admin can access automation builder";
+}
+
+// HIDE LINK FOR NON-ADMIN
+if(role !== "admin"){
+    const link = document.querySelector("a[href='n8n/']");
+    if(link) link.style.display = "none";
+}
+
+function logout(){
+    localStorage.clear();
+    window.location = "login.html";
+}
+
+async function fetchAnalyticsData() {
+    try {
+        const res = await fetch('/api/analytics/summary');
+        if (!res.ok) throw new Error('API unavailable');
+        const data = await res.json();
+
+        document.getElementById('workflows-count').innerText =
+            data.workflows ? data.workflows + ' workflows' : 'No workflow data';
+        document.getElementById('analytics-note').innerText =
+            data.processed_leads ? data.processed_leads + ' leads processed' : 'No analytics data yet';
+    } catch (error) {
+        console.log('Analytics backend not available', error);
+        document.getElementById('workflows-count').innerText = 'Analytics backend not available';
+        document.getElementById('analytics-note').innerText = 'TaskyHub analytics require backend API support.';
+    }
+}
+
+window.onload = fetchAnalyticsData;
+</script>
+
+</body>
+</html>

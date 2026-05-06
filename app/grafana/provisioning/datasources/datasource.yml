@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: grafana_user
+    secureJsonData:
+      password: "grafana_pwd"
+    jsonData:
+      database: taskyhub_db
+      sslmode: disable
+    isDefault: true
+    editable: true

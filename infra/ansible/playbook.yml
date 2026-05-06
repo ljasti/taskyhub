@@ -1,0 +1,131 @@
+---
+- name: Provision TaskyHub Server
+  hosts: all
+  become: yes
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Update and upgrade apt packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - git
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+        state: present
+
+    - name: Install Docker
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Install docker-compose plugin
+      apt:
+        name: docker-compose-plugin
+        state: present
+
+    - name: Create directories
+      file:
+        path: "/opt/{{ customer_name }}/{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      loop:
+        - n8n
+        - ui
+        - data
+
+    - name: Template and copy UI files
+      template:
+        src: "ui/{{ item }}"
+        dest: "/opt/{{ customer_name }}/ui/{{ item }}"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      loop:
+        - index.html
+        - login.html
+        - dashboard.html
+        - analytics.html
+
+    - name: Template and copy docker-compose.yml
+      template:
+        src: n8n/docker-compose.yml.j2
+        dest: "/opt/{{ customer_name }}/n8n/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+
+    - name: Template and copy nginx config
+      template:
+        src: tasky.conf.j2
+        dest: "/etc/nginx/sites-available/{{ customer_name }}.conf"
+        mode: '0644'
+
+    - name: Enable nginx site
+      file:
+        src: "/etc/nginx/sites-available/{{ customer_name }}.conf"
+        dest: "/etc/nginx/sites-enabled/{{ customer_name }}.conf"
+        state: link
+
+    - name: Disable default nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Test nginx config
+      command: nginx -t
+
+    - name: Restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+    - name: Set permissions for n8n data
+      file:
+        path: "/opt/{{ customer_name }}/data/n8n"
+        owner: '1000'
+        group: '1000'
+        mode: '0755'
+        recurse: yes
+
+    - name: Start n8n with docker-compose
+      command: docker compose up -d
+      args:
+        chdir: "/opt/{{ customer_name }}/n8n"
+
+    - name: Wait for n8n to be ready
+      wait_for:
+        port: 5678
+        delay: 10
+        timeout: 60
+
+    - name: Obtain SSL certificate
+      command: "certbot --nginx -d {{ domain_name }} --agree-tos -m admin@{{ domain_name }} -n"
+      args:
+        creates: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+      ignore_errors: yes
+
+    - name: Success message
+      debug:
+        msg: "TaskyHub deployment complete! Access at https://{{ domain_name }}"

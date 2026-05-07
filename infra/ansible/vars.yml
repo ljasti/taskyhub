@@ -16,14 +16,19 @@ user_password: user123
 
 # Application paths
 app_base_path: "/opt/{{ customer_name }}"
-n8n_path: "/opt/{{ customer_name }}/n8n"
+app_path: "/opt/{{ customer_name }}/app"
 ui_path: "/opt/{{ customer_name }}/ui"
 data_path: "/opt/{{ customer_name }}/data"
 
-# Database configuration
-postgres_db: taskyhub
-postgres_user: taskyhub_user
-postgres_password: changeme_db_pwd
+# JWT Configuration
+jwt_secret: taskyhub-secret
 
+# Database configurations
+postgres_password: changeme_postgres_superuser_pwd
+n8n_db_password: changeme_n8n_db_pwd
+grafana_db_password: changeme_grafana_db_pwd
+taskyhub_db_password: changeme_taskyhub_db_pwd
+
+# Grafana Configuration
 grafana_admin_user: admin
 grafana_admin_password: changeme_grafana_admin

@@ -21,6 +21,13 @@
           - python3-certbot-nginx
         state: present
 
+    - name: Create "tasker" user
+      user:
+        name: tasker
+        shell: /bin/bash
+        create_home: yes
+        state: present
+
     - name: Install Docker
       shell: curl -fsSL https://get.docker.com | sh
       args:
@@ -32,9 +39,9 @@
         enabled: yes
         state: started
 
-    - name: Add ubuntu user to docker group
+    - name: Add "tasker" user to docker group
       user:
-        name: ubuntu
+        name: tasker
         groups: docker
         append: yes
 
@@ -47,20 +54,60 @@
       file:
         path: "/opt/{{ customer_name }}/{{ item }}"
         state: directory
-        owner: ubuntu
-        group: ubuntu
+        owner: tasker
+        group: tasker
         mode: '0755'
       loop:
-        - n8n
+        - app
+        - app/api
+        - app/api/data
+        - app/ui
+        - app/grafana
+        - app/grafana/provisioning
+        - app/grafana/provisioning/datasources
+        - app/grafana/provisioning/dashboards
+        - app/grafana/dashboards
         - ui
         - data
+
+    - name: Copy app files (api, grafana, init.sql, UI)
+      copy:
+        src: "app/{{ item }}"
+        dest: "/opt/{{ customer_name }}/app/{{ item }}"
+        owner: tasker
+        group: tasker
+        mode: "{{ item.endswith('.sh') or item.endswith('/docker-entrypoint.sh') ? '0755' : '0644' }}"
+      loop:
+        - init.sql
+        - api/Dockerfile
+        - api/index.js
+        - api/package.json
+        - api/.dockerignore
+        - ui/Dockerfile
+        - ui/docker-entrypoint.sh
+        - ui/config.template.js
+        - grafana/provisioning/datasources/datasource.yml
+        - grafana/provisioning/dashboards/dashboard.yml
+
+    - name: Copy Grafana dashboards
+      copy:
+        src: "app/grafana/dashboards/{{ item }}"
+        dest: "/opt/{{ customer_name }}/app/grafana/dashboards/{{ item }}"
+        owner: tasker
+        group: tasker
+        mode: '0644'
+      loop:
+        - taskyhub-overview.json
+        - execution-metrics.json
+        - failure-monitoring.json
+        - performance.json
 
     - name: Template and copy UI files
       template:
         src: "ui/{{ item }}"
         dest: "/opt/{{ customer_name }}/ui/{{ item }}"
-        owner: ubuntu
-        group: ubuntu
+        owner: tasker
+        group: tasker
         mode: '0644'
       loop:
         - index.html
@@ -70,10 +117,10 @@
 
     - name: Template and copy docker-compose.yml
       template:
-        src: n8n/docker-compose.yml.j2
-        dest: "/opt/{{ customer_name }}/n8n/docker-compose.yml"
-        owner: ubuntu
-        group: ubuntu
+        src: app/docker-compose.yml.j2
+        dest: "/opt/{{ customer_name }}/app/docker-compose.yml"
+        owner: tasker
+        group: tasker
         mode: '0644'
 
     - name: Template and copy nginx config
@@ -108,11 +155,13 @@
         group: '1000'
         mode: '0755'
         recurse: yes
+        state: directory
 
-    - name: Start n8n with docker-compose
+    - name: Start TaskyHub with docker-compose
       command: docker compose up -d
       args:
-        chdir: "/opt/{{ customer_name }}/n8n"
+        chdir: "/opt/{{ customer_name }}/app"
+      become_user: tasker
 
     - name: Wait for n8n to be ready
       wait_for:

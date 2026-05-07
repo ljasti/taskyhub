@@ -3,16 +3,16 @@ version: "3.9"
 services:
   postgres:
     image: postgres:15
-    container_name: poc-postgres
+    container_name: {{ customer_name }}_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_pwd
+      POSTGRES_PASSWORD: {{ postgres_password }}
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - poc-net
+      - taskyhub-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -21,7 +21,7 @@ services:
 
   n8n:
     image: docker.n8n.io/n8nio/n8n
-    container_name: poc-n8n
+    container_name: {{ customer_name }}_n8n
     restart: unless-stopped
     depends_on:
       postgres:
@@ -32,54 +32,48 @@ services:
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: n8n_db
       DB_POSTGRESDB_USER: n8n_user
-      DB_POSTGRESDB_PASSWORD: n8n_pwd
-      N8N_HOST: localhost
+      DB_POSTGRESDB_PASSWORD: {{ n8n_db_password }}
+      N8N_HOST: {{ domain_name }}
       N8N_PORT: 5678
-      N8N_PROTOCOL: http
+      N8N_PROTOCOL: https
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
-      - poc-net
+      - taskyhub-net
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
 
   grafana:
     image: grafana/grafana:latest
-    container_name: poc-grafana
+    container_name: {{ customer_name }}_grafana
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      GF_SECURITY_ADMIN_USER: taskyhub_admin
-      GF_SECURITY_ADMIN_PASSWORD: T4skyhub@dm1n!
+      GF_SECURITY_ADMIN_USER: {{ grafana_admin_user }}
+      GF_SECURITY_ADMIN_PASSWORD: {{ grafana_admin_password }}
 
-      # Branding
       GF_BRANDING_APP_TITLE: TaskyHub
       GF_BRANDING_LOGIN_TITLE: TaskyHub Login
 
-      # Security - Allow embedding
       GF_SECURITY_ALLOW_EMBEDDING: "true"
       
-      # Auth
       GF_AUTH_ANONYMOUS_ENABLED: true
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       
-      # Default dashboard
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/taskyhub-overview.json
 
-      # ✅ FIXED: dedicated DB
       GF_DATABASE_TYPE: postgres
       GF_DATABASE_HOST: postgres
       GF_DATABASE_NAME: grafana_db
       GF_DATABASE_USER: grafana_user
-      GF_DATABASE_PASSWORD: grafana_pwd
+      GF_DATABASE_PASSWORD: {{ grafana_db_password }}
       GF_DATABASE_SSL_MODE: disable
-
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     networks:
-      - poc-net
+      - taskyhub-net
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -89,23 +83,23 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: taskyhub-api
+    container_name: {{ customer_name }}_api
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     environment:
-      JWT_SECRET: taskyhub-secret
+      JWT_SECRET: {{ jwt_secret }}
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: taskyhub_db
       DB_USER: taskyhub_user
-      DB_PASSWORD: taskyhub_pwd
+      DB_PASSWORD: {{ taskyhub_db_password }}
       GRAFANA_URL: http://localhost:3000
       N8N_URL: http://localhost:5678
     volumes:
       - ./api/data:/usr/src/app/data
     networks:
-      - poc-net
+      - taskyhub-net
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,14 +108,14 @@ services:
     build:
       context: ./ui
       dockerfile: Dockerfile
-    container_name: poc-ui
+    container_name: {{ customer_name }}_ui
     restart: unless-stopped
     environment:
       API_URL: http://localhost:4000/api
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     networks:
-      - poc-net
+      - taskyhub-net
     depends_on:
       - api
 
@@ -131,5 +125,5 @@ volumes:
   grafana_data:
 
 networks:
-  poc-net:
+  taskyhub-net:
     driver: bridge

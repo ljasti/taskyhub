@@ -1,90 +1,185 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>TaskyHub Login</title>
-<link rel="icon" type="image/svg+xml" href="images/favicon.svg">
-<link rel="alternate icon" href="images/favicon.ico">
+  <meta charset="UTF-8">
+  <title>TaskyHub Login</title>
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+  <link rel="alternate icon" href="images/favicon.ico">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-<style>
-body{margin:0;font-family:system-ui;background:#0b1220;color:white;display:flex;justify-content:center;align-items:center;min-height:100vh;}
-.container{width:100%;max-width:380px;padding:32px;}
-.box{background:#111827;padding:32px;border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.35);}
-.logo{display:block;width:180px;max-width:100%;margin:0 auto 20px;}
-h2{margin:0 0 24px;font-size:2rem;text-align:center;color:#ff9b3a;}
-input{width:100%;padding:12px;margin:10px 0;border-radius:12px;border:1px solid #2e3a56;background:#0f172a;color:white;}
-button{width:100%;padding:12px;margin-top:16px;background:linear-gradient(135deg,#ff7a1d,#ffb149);border:none;color:#0b1220;font-weight:700;border-radius:12px;cursor:pointer;}
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
 
-.box{
-  background:#111827;
-  padding:30px;
-  border-radius:12px;
-  width:320px;
-}
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 24px;
+    }
 
-input{
-  width:100%;
-  padding:10px;
-  margin:8px 0;
-  border-radius:8px;
-  border:1px solid #333;
-  background:#0f172a;
-  color:white;
-}
+    .box {
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      padding: 48px;
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    }
 
-button{
-  width:100%;
-  padding:10px;
-  background:linear-gradient(135deg,#38bdf8,#6366f1);
-  border:none;
-  color:black;
-  font-weight:bold;
-  border-radius:8px;
-  cursor:pointer;
-}
-</style>
+    .logo {
+      display: block;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto 40px;
+    }
+
+    h2 {
+      margin: 0 0 28px;
+      font-size: 1.1rem;
+      font-weight: 300;
+      text-align: center;
+      color: #cbd5e1;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 18px;
+      margin: 12px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(51, 65, 85, 0.9);
+      background: #0f172a;
+      color: white;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    input::placeholder {
+      color: #64748b;
+    }
+
+    input:focus {
+      border-color: #f97316;
+      box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 20px;
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      border: none;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 1.05rem;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 6px 15px -3px rgba(249, 115, 22, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 25px -5px rgba(249, 115, 22, 0.5);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .login-hint {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #64748b;
+      line-height: 1.7;
+    }
+
+    .login-hint code {
+      background: #0f172a;
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #f97316;
+      font-size: 0.8rem;
+    }
+  </style>
 </head>
-
 <body>
-
-<div class="container">
-  <div class="box">
-    <img class="logo" src="images/logo.png" alt="TaskyHub logo">
-    <h2>TaskyHub Login</h2>
-    <input id="user" placeholder="Username">
-    <input id="pass" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
+  <div class="container">
+    <div class="box">
+      <img class="logo" src="images/logo.png" alt="TaskyHub logo">
+      <h2>Welcome Back</h2>
+      <input id="email" placeholder="Email (e.g., devops@taskyhub.local)" type="email">
+      <input id="pass" type="password" placeholder="Password">
+      <button onclick="login()">Sign In</button>
+      <div class="login-hint">
+        <strong>Demo Credentials:</strong><br>
+        DevOps: <code>devops@taskyhub.local</code> / <code>admin123</code><br>
+        Developer: <code>developer@taskyhub.local</code> / <code>test123</code>
+      </div>
+    </div>
   </div>
-</div>
 
-<script>
-function login(){
-    const u = document.getElementById("user").value;
-    const p = document.getElementById("pass").value;
+  <script src="config.js"></script>
+  <script>
+    const API_URL = window.TASKYHUB_CONFIG?.API_URL || 'http://localhost:4000/api';
 
-    let role = null;
-
-    // ADMIN
-    if(u==="admin" && p==="admin123"){
-        role = "admin";
+    if (localStorage.getItem('tasky_token')) {
+      window.location = 'dashboard.html';
     }
 
-    // USER
-    else if(u==="user" && p==="user123"){
-        role = "user";
-    }
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('pass').value;
 
-    else {
-        alert("Invalid credentials");
+      if (!email || !password) {
+        alert('Please enter both email and password.');
         return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          return alert(payload.error || 'Login failed');
+        }
+
+        localStorage.setItem('tasky_token', payload.token);
+        localStorage.setItem('tasky_user', JSON.stringify(payload.user));
+        window.location = 'dashboard.html';
+      } catch (error) {
+        console.error(error);
+        alert('Unable to reach the TaskyHub backend.');
+      }
     }
 
-    localStorage.setItem("tasky_auth","true");
-    localStorage.setItem("tasky_role",role);
+    document.getElementById('pass').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        login();
+      }
+    });
 
-    window.location = "dashboard.html";
-}
-</script>
-
+    document.getElementById('email').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('pass').focus();
+      }
+    });
+  </script>
 </body>
 </html>

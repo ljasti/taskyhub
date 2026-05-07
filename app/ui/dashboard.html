@@ -255,6 +255,11 @@
       color: #ef4444;
     }
 
+    .status-inactive {
+      background: rgba(148, 163, 184, 0.2);
+      color: #cbd5e1;
+    }
+
     .status-running {
       background: rgba(59, 130, 246, 0.15);
       color: #3b82f6;
@@ -380,8 +385,8 @@
         <button data-tab="failures" onclick="switchTab('failures')">Failures</button>
         <button data-tab="insights" onclick="switchTab('insights')">Insights</button>
         <span id="adminNav" style="display:flex; gap:12px; border-left:1px solid rgba(148,163,184,0.2); padding-left:24px; margin-left:24px;">
-          <button id="openGrafanaBtn" style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);" onclick="openGrafana()">Open Grafana</button>
-          <button id="openN8nBtn" style="background:linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);" onclick="openN8n()">Open n8n</button>
+          <button id="openGrafanaBtn" style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);" onclick="openGrafana()">Monitoring Dashboard</button>
+          <button id="openN8nBtn" style="background:linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);" onclick="openN8n()">Workflow Console</button>
         </span>
       </nav>
       <button onclick="logout()">Logout</button>
@@ -519,6 +524,15 @@
     let dashboardPolling = null;
     let trendChart = null;
     let statusChart = null;
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
     
     async function apiFetch(endpoint, options = {}) {
       const token = localStorage.getItem('tasky_token');
@@ -658,20 +672,28 @@
         `;
 
         const topWorkflowsBody = document.getElementById('topWorkflowsBody');
-        topWorkflowsBody.innerHTML = data.topWorkflows.slice(0, 5).map(wf => `
-          <tr>
-            <td>${wf.workflow_name || `Workflow ${wf.workflowId}`}</td>
-            <td>${wf.execution_count}</td>
-          </tr>
-        `).join('');
+        if (!data.topWorkflows || data.topWorkflows.length === 0) {
+          topWorkflowsBody.innerHTML = '<tr><td colspan="2" style="color:#64748b;">No active workflows with executions found</td></tr>';
+        } else {
+          topWorkflowsBody.innerHTML = data.topWorkflows.slice(0, 5).map(wf => `
+            <tr>
+              <td>${wf.workflow_name || `Workflow ${wf.workflowId}`}</td>
+              <td>${wf.execution_count}</td>
+            </tr>
+          `).join('');
+        }
 
         const topFailedBody = document.getElementById('topFailedBody');
-        topFailedBody.innerHTML = data.topFailedWorkflows.slice(0, 5).map(wf => `
-          <tr>
-            <td>${wf.workflow_name || `Workflow ${wf.workflowId}`}</td>
-            <td style="color:#ef4444;">${wf.failure_count}</td>
-          </tr>
-        `).join('');
+        if (!data.topFailedWorkflows || data.topFailedWorkflows.length === 0) {
+          topFailedBody.innerHTML = '<tr><td colspan="2" style="color:#64748b;">No failed workflows found</td></tr>';
+        } else {
+          topFailedBody.innerHTML = data.topFailedWorkflows.slice(0, 5).map(wf => `
+            <tr>
+              <td>${wf.workflow_name || `Workflow ${wf.workflowId}`}</td>
+              <td style="color:#ef4444;">${wf.failure_count}</td>
+            </tr>
+          `).join('');
+        }
 
         if (trendsResult.success) {
           const trendData = trendsResult.data;
@@ -783,14 +805,14 @@
           <tr>
             <td><strong>${wf.name || `Workflow ${wf.id}`}</strong></td>
             <td>${wf.id}</td>
-            <td><span class="status-badge ${wf.active ? 'status-success' : 'status-error'}">${wf.active ? 'Active' : 'Inactive'}</span></td>
+            <td><span class="status-badge ${wf.active ? 'status-success' : 'status-inactive'}">${wf.active ? 'Active' : 'Inactive'}</span></td>
             <td>${wf.total_executions}</td>
             <td><span class="status-success">${wf.successRate}%</span></td>
             <td><span class="${wf.failureRate > 10 ? 'status-error' : 'status-success'}">${wf.failureRate}%</span></td>
             <td>${Math.round(wf.avg_duration)}ms</td>
             <td>${wf.last_execution_at ? new Date(wf.last_execution_at).toLocaleString() : 'N/A'}</td>
             <td><span class="status-badge status-${wf.last_status || 'unknown'}">${wf.last_status || 'N/A'}</span></td>
-            <td><span class="status-badge health-${wf.healthCategory.toLowerCase()}">${wf.healthScore}/100 - ${wf.healthCategory}</span></td>
+            <td><span class="status-badge health-${String(wf.healthCategory || 'unknown').toLowerCase().replace(/\s+/g, '-')}">${wf.healthScore === null ? 'N/A' : `${wf.healthScore}/100`} - ${wf.healthCategory}</span></td>
           </tr>
         `).join('');
         
@@ -833,26 +855,42 @@
         `;
         
         let detailedFailuresResult = null;
+        let failuresResult = null;
         try {
-          detailedFailuresResult = await apiFetch('/dashboard/failures/detailed');
+          [detailedFailuresResult, failuresResult] = await Promise.all([
+            apiFetch('/dashboard/failures/detailed'),
+            apiFetch('/failures?limit=50&offset=0')
+          ]);
         } catch (detailedErr) {
-          console.warn('Detailed failures API failed, continuing without details:', detailedErr);
+          console.warn('Failures API failed:', detailedErr);
         }
 
-        if (detailedFailuresResult && detailedFailuresResult.success && detailedFailuresResult.data.length > 0) {
-          tableBody.innerHTML = detailedFailuresResult.data.map(failure => `
+        const detailedRows = detailedFailuresResult && detailedFailuresResult.success && Array.isArray(detailedFailuresResult.data)
+          ? detailedFailuresResult.data
+          : [];
+        const fallbackRows = failuresResult && Array.isArray(failuresResult.failures)
+          ? failuresResult.failures
+          : [];
+        const failureRows = detailedRows.length > 0 ? detailedRows : fallbackRows;
+
+        if (failureRows.length > 0) {
+          tableBody.innerHTML = failureRows.map(failure => {
+            const fullError = failure.errorMessage || '';
+            const shortError = failure.errorMessageShort || failure.errorMessage || `Execution ended with status: ${failure.status || 'unknown'}`;
+            return `
             <tr>
-              <td>${failure.id}</td>
-              <td>${failure.workflow_name || `Workflow ${failure.workflowId}`}</td>
-              <td><span class="status-badge status-error">${failure.failedNode}</span></td>
-              <td>${failure.errorType}</td>
-              <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${failure.errorMessage}">${failure.errorMessage}</td>
-              <td>${new Date(failure.startedAt).toLocaleString()}</td>
+              <td>${failure.id || failure.execution_id || 'N/A'}</td>
+              <td>${failure.workflow_name || `Workflow ${failure.workflowId || 'Unknown'}`}</td>
+              <td><span class="status-badge status-error">${failure.failedNode || 'Unknown'}</span></td>
+              <td>${failure.errorType || failure.status || 'Unknown'}</td>
+              <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(fullError)}">${escapeHtml(shortError)}</td>
+              <td>${new Date(failure.startedAt || failure.start_time).toLocaleString()}</td>
               <td>${Math.round(failure.duration_ms || 0)}ms</td>
             </tr>
-          `).join('');
+          `;
+          }).join('');
         } else {
-          tableBody.innerHTML = '<tr><td colspan="7" style="color:#64748b;">No failures found</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="7" style="color:#64748b;">No recent failures found</td></tr>';
         }
       } catch (err) {
         console.error('Failures Dashboard Error:', err);
@@ -887,8 +925,9 @@
 
         if (performanceResult.success) {
           const workflows = performanceResult.data;
-          const avgHealthScore = workflows.length > 0 
-            ? Math.round(workflows.reduce((sum, wf) => sum + wf.healthScore, 0) / workflows.length)
+          const workflowsWithExecutions = workflows.filter(wf => Number(wf.total_executions || 0) > 0);
+          const avgHealthScore = workflowsWithExecutions.length > 0 
+            ? Math.round(workflowsWithExecutions.reduce((sum, wf) => sum + Number(wf.healthScore || 0), 0) / workflowsWithExecutions.length)
             : 0;
           
           healthGrid.innerHTML = `
@@ -898,19 +937,19 @@
             </div>
             <div class="card">
               <div class="kpi-label">Excellent Health</div>
-              <div class="kpi-value" style="background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Excellent').length}</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%); -webkit-background-clip: text;">${workflowsWithExecutions.filter(wf => wf.healthCategory === 'Excellent').length}</div>
             </div>
             <div class="card">
               <div class="kpi-label">Healthy</div>
-              <div class="kpi-value" style="background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Healthy').length}</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); -webkit-background-clip: text;">${workflowsWithExecutions.filter(wf => wf.healthCategory === 'Healthy').length}</div>
             </div>
             <div class="card">
               <div class="kpi-label">Warning</div>
-              <div class="kpi-value" style="background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Warning').length}</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%); -webkit-background-clip: text;">${workflowsWithExecutions.filter(wf => wf.healthCategory === 'Warning').length}</div>
             </div>
             <div class="card">
               <div class="kpi-label">Critical</div>
-              <div class="kpi-value" style="background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Critical').length}</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); -webkit-background-clip: text;">${workflowsWithExecutions.filter(wf => wf.healthCategory === 'Critical' && Number(wf.failed_executions || 0) > 0).length}</div>
             </div>
           `;
         }

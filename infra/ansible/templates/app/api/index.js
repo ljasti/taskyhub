@@ -3,6 +3,14 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
+const { randomUUID } = require('crypto');
+const {
+  FAILED_EXECUTION_STATUSES,
+  normalizeFailureDetails,
+  truncateErrorMessage,
+  computeWorkflowHealth,
+  toNumber,
+} = require('./dashboard-utils');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -25,9 +33,9 @@ const pool = new Pool({
 const n8nPool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: 'n8n_db',
-  user: 'n8n_user',
-  password: 'n8n_pwd',
+  database: process.env.N8N_DB_NAME || 'n8n_db',
+  user: process.env.N8N_DB_USER || 'n8n_user',
+  password: process.env.N8N_DB_PASSWORD || 'n8n_pwd',
 });
 
 function generateToken(user) {
@@ -40,10 +48,21 @@ function generateToken(user) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
 }
 
+function isAllowedDemoLogin(email, password) {
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  const normalizedEmail = String(email || '').toLowerCase();
+  return (
+    (normalizedEmail === 'devops@taskyhub.local' && password === 'admin123') ||
+    (normalizedEmail === 'developer@taskyhub.local' && password === 'test123')
+  );
+}
+
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
-  console.log('Authorization Header:', authHeader);
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ 
       success: false, 
@@ -74,14 +93,16 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-app.get('/api/hash/:password', async (req, res) => {
-  try {
-    const hash = await bcrypt.hash(req.params.password, 10);
-    res.json({ password: req.params.password, hash });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to hash password' });
-  }
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/hash/:password', async (req, res) => {
+    try {
+      const hash = await bcrypt.hash(req.params.password, 10);
+      res.json({ hash });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to hash password' });
+    }
+  });
+}
 
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
@@ -100,19 +121,12 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    console.log('Login attempt for email:', email);
-    console.log('Password provided:', password);
-    console.log('Stored hash:', user.password);
-
     const passwordMatch = await bcrypt.compare(password, user.password);
-    
-    if (!passwordMatch) {
-      console.log('Password match failed. Trying plaintext check for local testing.');
-      if (password === 'admin123' || password === 'test123') {
-        console.log('Plaintext match found for local testing');
-      } else {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+
+    const demoLoginAllowed = isAllowedDemoLogin(email, password);
+
+    if (!passwordMatch && !demoLoginAllowed) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = generateToken(user);
@@ -228,7 +242,7 @@ app.post('/api/users', authMiddleware, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUserId = String(Date.now());
+    const newUserId = randomUUID();
 
     const newUserResult = await client.query(
       'INSERT INTO users (id, subscription_id, email, password, name, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, role, name',
@@ -271,33 +285,39 @@ app.get('/api/dashboard/overview', authMiddleware, async (req, res) => {
     activeWorkflows = parseInt(workflowsResult.rows[0].active);
     inactiveWorkflows = totalWorkflows - activeWorkflows;
 
+    // Keep failure summary aligned with table queries using canonical failed statuses.
     const executionsResult = await n8nPool.query(`
         SELECT 
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE status = 'success') as successful,
-          COUNT(*) FILTER (WHERE status = 'error') as failed,
-          COUNT(*) FILTER (WHERE status = 'running') as running,
+          COUNT(DISTINCT id) as total,
+          COUNT(DISTINCT id) FILTER (WHERE status = 'success') as successful,
+          COUNT(DISTINCT id) FILTER (
+            WHERE LOWER(COALESCE(status, '')) = ANY($1::text[])
+              OR data::text ILIKE '%"error"%'
+          ) as failed,
+          COUNT(DISTINCT id) FILTER (WHERE status = 'running') as running,
           AVG(COALESCE(EXTRACT(EPOCH FROM ("stoppedAt" - "startedAt")) * 1000, 0)) as avg_duration,
-          COUNT(*) FILTER (WHERE "startedAt" >= NOW() - INTERVAL '24 HOURS') as last_24h,
-          COUNT(*) FILTER (WHERE "startedAt" >= NOW() - INTERVAL '7 DAYS') as last_7d
+          COUNT(DISTINCT id) FILTER (WHERE "startedAt" >= NOW() - INTERVAL '24 HOURS') as last_24h,
+          COUNT(DISTINCT id) FILTER (WHERE "startedAt" >= NOW() - INTERVAL '7 DAYS') as last_7d
         FROM execution_entity
-      `);
-    totalExecutions = parseInt(executionsResult.rows[0].total);
-    successfulExecutions = parseInt(executionsResult.rows[0].successful);
-    failedExecutions = parseInt(executionsResult.rows[0].failed);
-    runningExecutions = parseInt(executionsResult.rows[0].running);
-    averageExecutionTimeMs = parseFloat(executionsResult.rows[0].avg_duration || 0);
-    last24hExecutions = parseInt(executionsResult.rows[0].last_24h);
-    last7dExecutions = parseInt(executionsResult.rows[0].last_7d);
+      `, [FAILED_EXECUTION_STATUSES]);
+    totalExecutions = toNumber(executionsResult.rows[0].total, 0);
+    successfulExecutions = toNumber(executionsResult.rows[0].successful, 0);
+    failedExecutions = toNumber(executionsResult.rows[0].failed, 0);
+    runningExecutions = toNumber(executionsResult.rows[0].running, 0);
+    averageExecutionTimeMs = toNumber(executionsResult.rows[0].avg_duration, 0);
+    last24hExecutions = toNumber(executionsResult.rows[0].last_24h, 0);
+    last7dExecutions = toNumber(executionsResult.rows[0].last_7d, 0);
 
     const topWorkflowsResult = await n8nPool.query(`
       SELECT 
         w.id as "workflowId",
         w.name as workflow_name,
-        COUNT(e.id) as execution_count
+        COUNT(DISTINCT e.id) as execution_count
       FROM workflow_entity w
       LEFT JOIN execution_entity e ON w.id = e."workflowId"
+      WHERE LOWER(COALESCE(CAST(w.active AS text), 'false')) IN ('true', 't', '1', 'yes', 'y')
       GROUP BY w.id, w.name
+      HAVING COUNT(DISTINCT e.id) > 0
       ORDER BY execution_count DESC
       LIMIT 10
     `);
@@ -307,13 +327,17 @@ app.get('/api/dashboard/overview', authMiddleware, async (req, res) => {
       SELECT 
         w.id as "workflowId",
         w.name as workflow_name,
-        COUNT(e.id) as failure_count
+        COUNT(DISTINCT e.id) as failure_count
       FROM workflow_entity w
-      LEFT JOIN execution_entity e ON w.id = e."workflowId" AND e.status = 'error'
+      LEFT JOIN execution_entity e ON w.id = e."workflowId" AND (
+        LOWER(COALESCE(e.status, '')) = ANY($1::text[])
+        OR e.data::text ILIKE '%"error"%'
+      )
       GROUP BY w.id, w.name
+      HAVING COUNT(DISTINCT e.id) > 0
       ORDER BY failure_count DESC, w.name ASC
       LIMIT 10
-    `);
+    `, [FAILED_EXECUTION_STATUSES]);
     topFailedWorkflows = topFailedWorkflowsResult.rows;
 
     console.log('Dashboard overview data fetched successfully');
@@ -515,13 +539,17 @@ app.get('/api/failures', authMiddleware, async (req, res) => {
           e.status,
           e."startedAt" as start_time,
           e."stoppedAt" as end_time,
+          e.data,
           COALESCE(EXTRACT(EPOCH FROM (e."stoppedAt" - e."startedAt")) * 1000, 0) as duration_ms
         FROM execution_entity e 
         JOIN workflow_entity w ON e."workflowId" = w.id 
-        WHERE e.status = 'error'
+        WHERE (
+          LOWER(COALESCE(e.status, '')) = ANY($1::text[])
+          OR e.data::text ILIKE '%"error"%'
+        )
       `;
       const params = [];
-      let paramIndex = 1;
+      let paramIndex = 2;
 
       if (workflowId) {
         query += ` AND e."workflowId" = $${paramIndex}`;
@@ -544,19 +572,32 @@ app.get('/api/failures', authMiddleware, async (req, res) => {
       query += ` ORDER BY e."startedAt" DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(parseInt(limit), parseInt(offset));
 
-      const failuresResult = await n8nPool.query(query, params);
-      failures = failuresResult.rows;
+      const failuresResult = await n8nPool.query(query, [FAILED_EXECUTION_STATUSES, ...params]);
+      failures = failuresResult.rows.map((failure) => {
+        const { failedNode, errorMessage, errorType, stackTrace } = normalizeFailureDetails(failure);
+        return {
+          ...failure,
+          failedNode,
+          errorType,
+          errorMessage,
+          stackTrace,
+          errorMessageShort: truncateErrorMessage(errorMessage, 180),
+        };
+      });
 
       const statsResult = await n8nPool.query(`
         SELECT 
-          COUNT(*) as total_executions,
-          COUNT(*) FILTER (WHERE status = 'error') as failed_executions
+          COUNT(DISTINCT id) as total_executions,
+          COUNT(DISTINCT id) FILTER (
+            WHERE LOWER(COALESCE(status, '')) = ANY($1::text[])
+              OR data::text ILIKE '%"error"%'
+          ) as failed_executions
         FROM execution_entity
         WHERE "startedAt" >= NOW() - INTERVAL '7 days'
-      `);
+      `, [FAILED_EXECUTION_STATUSES]);
       
-      const total = parseInt(statsResult.rows[0].total_executions);
-      const failed = parseInt(statsResult.rows[0].failed_executions);
+      const total = toNumber(statsResult.rows[0].total_executions, 0);
+      const failed = toNumber(statsResult.rows[0].failed_executions, 0);
       failureRate = total > 0 ? (failed / total) * 100 : 0;
       
     } catch (e) {
@@ -575,14 +616,17 @@ app.get('/api/dashboard/trends', authMiddleware, async (req, res) => {
     const trendsResult = await n8nPool.query(`
       SELECT 
         DATE_TRUNC('hour', "startedAt") as hour,
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status = 'success') as successful,
-        COUNT(*) FILTER (WHERE status = 'error') as failed
+        COUNT(DISTINCT id) as total,
+        COUNT(DISTINCT id) FILTER (WHERE status = 'success') as successful,
+        COUNT(DISTINCT id) FILTER (
+          WHERE LOWER(COALESCE(status, '')) = ANY($1::text[])
+            OR data::text ILIKE '%"error"%'
+        ) as failed
       FROM execution_entity
       WHERE "startedAt" >= NOW() - INTERVAL '24 HOURS'
       GROUP BY DATE_TRUNC('hour', "startedAt")
       ORDER BY hour ASC
-    `);
+    `, [FAILED_EXECUTION_STATUSES]);
     res.json({
       success: true,
       data: trendsResult.rows
@@ -600,10 +644,13 @@ app.get('/api/dashboard/performance', authMiddleware, async (req, res) => {
         w.id,
         w.name,
         w.active,
-        COUNT(e.id) as total_executions,
-        COUNT(*) FILTER (WHERE e.status = 'success') as successful_executions,
-        COUNT(*) FILTER (WHERE e.status = 'error') as failed_executions,
-        COUNT(*) FILTER (WHERE e.status = 'running') as running_executions,
+        COUNT(DISTINCT e.id) as total_executions,
+        COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'success') as successful_executions,
+        COUNT(DISTINCT e.id) FILTER (
+          WHERE LOWER(COALESCE(e.status, '')) = ANY($1::text[])
+            OR e.data::text ILIKE '%"error"%'
+        ) as failed_executions,
+        COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'running') as running_executions,
         AVG(COALESCE(EXTRACT(EPOCH FROM (e."stoppedAt" - e."startedAt")) * 1000, 0)) as avg_duration,
         MAX(e."startedAt") as last_execution_at,
         MAX(CASE WHEN e."startedAt" = (SELECT MAX("startedAt") FROM execution_entity WHERE "workflowId" = w.id) THEN e.status END) as last_status
@@ -611,29 +658,16 @@ app.get('/api/dashboard/performance', authMiddleware, async (req, res) => {
       LEFT JOIN execution_entity e ON w.id = e."workflowId"
       GROUP BY w.id, w.name, w.active
       ORDER BY total_executions DESC
-    `);
+    `, [FAILED_EXECUTION_STATUSES]);
     
     const workflowsWithHealth = performanceResult.rows.map(wf => {
-      const successRate = wf.total_executions > 0 ? (wf.successful_executions / wf.total_executions) * 100 : 0;
-      const failureRate = wf.total_executions > 0 ? (wf.failed_executions / wf.total_executions) * 100 : 0;
-      
-      let healthScore = 0;
-      healthScore += successRate * 0.5;
-      healthScore += (wf.avg_duration > 0 && wf.avg_duration < 30000) ? 20 : (wf.avg_duration < 60000 ? 10 : 0);
-      healthScore += (failureRate < 5) ? 30 : (failureRate < 15 ? 15 : 0);
-      healthScore = Math.min(100, Math.max(0, healthScore));
-      
-      let healthCategory = 'Critical';
-      if (healthScore >= 90) healthCategory = 'Excellent';
-      else if (healthScore >= 70) healthCategory = 'Healthy';
-      else if (healthScore >= 50) healthCategory = 'Warning';
-      
+      const health = computeWorkflowHealth(wf);
       return {
         ...wf,
-        successRate: parseFloat(successRate.toFixed(2)),
-        failureRate: parseFloat(failureRate.toFixed(2)),
-        healthScore: Math.round(healthScore),
-        healthCategory
+        successRate: parseFloat(health.successRate.toFixed(2)),
+        failureRate: parseFloat(health.failureRate.toFixed(2)),
+        healthScore: health.healthScore,
+        healthCategory: health.healthCategory,
       };
     });
     
@@ -662,44 +696,24 @@ app.get('/api/dashboard/failures/detailed', authMiddleware, async (req, res) => 
         COALESCE(EXTRACT(EPOCH FROM (e."stoppedAt" - e."startedAt")) * 1000, 0) as duration_ms
       FROM execution_entity e 
       LEFT JOIN workflow_entity w ON e."workflowId" = w.id 
-      WHERE e.status = 'error'
+      WHERE (
+        LOWER(COALESCE(e.status, '')) = ANY($1::text[])
+        OR e.data::text ILIKE '%"error"%'
+      )
       ORDER BY e."startedAt" DESC
       LIMIT 50
-    `);
+    `, [FAILED_EXECUTION_STATUSES]);
     
     console.log('Detailed failures query complete, rows:', detailedFailuresResult.rows.length);
     
     const failuresWithDetails = detailedFailuresResult.rows.map(failure => {
-      let failedNode = 'Unknown';
-      let errorMessage = 'Unknown error';
-      let errorType = 'Unknown';
-      
-      try {
-        if (failure.data) {
-          let dataObj = failure.data;
-          if (typeof dataObj === 'string') {
-            dataObj = JSON.parse(dataObj);
-          }
-          
-          if (dataObj.executionData && dataObj.executionData.resultData) {
-            const resultData = dataObj.executionData.resultData;
-            if (resultData.error) {
-              errorMessage = resultData.error.message || 'Unknown error';
-              errorType = resultData.error.name || 'Unknown';
-            }
-            if (resultData.lastNodeExecuted) {
-              failedNode = resultData.lastNodeExecuted;
-            }
-          }
-        }
-      } catch (parseErr) {
-        console.error('Error parsing execution data for execution', failure.id, ':', parseErr);
-      }
-      
+      const { failedNode, errorMessage, errorType, stackTrace } = normalizeFailureDetails(failure);
       return {
         ...failure,
         failedNode,
         errorMessage,
+        stackTrace,
+        errorMessageShort: truncateErrorMessage(errorMessage, 180),
         errorType
       };
     });
@@ -724,8 +738,11 @@ app.get('/api/dashboard/insights', authMiddleware, async (req, res) => {
         COUNT(*) as total_failures,
         COUNT(*) FILTER (WHERE "startedAt" >= NOW() - INTERVAL '1 HOUR') as failures_last_hour
       FROM execution_entity 
-      WHERE status = 'error'
-    `);
+      WHERE (
+        LOWER(COALESCE(status, '')) = ANY($1::text[])
+        OR data::text ILIKE '%"error"%'
+      )
+    `, [FAILED_EXECUTION_STATUSES]);
     
     const totalFailures = parseInt(failureStatsResult.rows[0].total_failures);
     const failuresLastHour = parseInt(failureStatsResult.rows[0].failures_last_hour);
@@ -747,14 +764,17 @@ app.get('/api/dashboard/insights', authMiddleware, async (req, res) => {
     const topFailedResult = await n8nPool.query(`
       SELECT 
         w.name as workflow_name,
-        COUNT(e.id) as failure_count
+        COUNT(DISTINCT e.id) as failure_count
       FROM workflow_entity w
       JOIN execution_entity e ON w.id = e."workflowId"
-      WHERE e.status = 'error'
+      WHERE (
+        LOWER(COALESCE(e.status, '')) = ANY($1::text[])
+        OR e.data::text ILIKE '%"error"%'
+      )
       GROUP BY w.id, w.name
       ORDER BY failure_count DESC
       LIMIT 3
-    `);
+    `, [FAILED_EXECUTION_STATUSES]);
     
     topFailedResult.rows.forEach(wf => {
       insights.push({

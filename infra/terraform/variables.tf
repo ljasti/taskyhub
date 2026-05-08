@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t3.medium"
+  default     = "t2.micro"
 }
 
 variable "ami_id" {
@@ -21,6 +21,11 @@ variable "key_pair_name" {
   type        = string
 }
 
+variable "ssh_private_key_path" {
+  description = "Path to SSH private key file used by Ansible"
+  type        = string
+}
+
 variable "customer_name" {
   description = "Customer name (e.g., tasky, acme, customer)"
   type        = string
@@ -31,14 +36,14 @@ variable "domain_name" {
   type        = string
 }
 
-variable "n8n_admin_user" {
-  description = "n8n admin username"
+variable "ae_admin_user" {
+  description = "automation engine admin username"
   type        = string
   default     = "admin"
 }
 
-variable "n8n_admin_password" {
-  description = "n8n admin password"
+variable "ae_admin_password" {
+  description = "automation engine admin password"
   type        = string
   sensitive   = true
 }

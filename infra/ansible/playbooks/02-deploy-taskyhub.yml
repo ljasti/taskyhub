@@ -1,0 +1,329 @@
+---
+- name: Deploy TaskyHub Application
+  hosts: tasky_servers
+  become: yes
+
+  vars_files:
+    - ../vault/secrets.yml              # Encrypted secrets
+    - ../vars.yml                       # Customer-specific vars
+    - ../group_vars/tasky_servers.yml   # Naming conventions
+
+  vars:
+    app_dir: /opt/taskyhub
+    compose_file: "{{ app_dir }}/docker-compose.yml"
+    # From your repo tree: local/app contains api, ui, grafana, init.sql, tasky.conf
+    local_app_dir: "{{ playbook_dir }}/../../../local/app"
+
+  pre_tasks:
+    - name: Set postgres container name
+      set_fact:
+        postgres_container: "{{ customer_name }}_postgres"
+
+    - name: Verify required secrets are defined
+      assert:
+        that:
+          - customer_name is defined
+          - postgres_password is defined
+          - taskyhub_db_password is defined
+          - ae_db_password is defined
+          - grafana_db_password is defined
+          - jwt_secret is defined
+          - grafana_admin_user is defined
+          - grafana_admin_password is defined
+          - admin_password_hash is defined
+          - user_password_hash is defined
+        fail_msg: "Missing required variables. Check vault/secrets.yml and vars.yml"
+        success_msg: "✅ All required secrets loaded successfully"
+
+    - name: Display deployment configuration
+      debug:
+        msg: |
+          ==========================================
+          TaskyHub Deployment: {{ customer_name }}
+          ==========================================
+          Database Users:
+            - Main: {{ postgres_db_user }}
+            - AE: {{ ae_db_user }}
+            - Grafana: {{ grafana_db_user }}
+          Database Names:
+            - Main: {{ postgres_db_name }}
+            - AE: {{ ae_db_name }}
+            - Grafana: {{ grafana_db_name }}
+          Application Users:
+            - Admin: {{ default_admin_username }}@taskyhub.local
+            - User: {{ default_user_username }}@taskyhub.local
+          Subscription: {{ subscription_id }}
+          Domain: {{ domain_name }}
+          ==========================================
+
+  tasks:
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy API from local/app
+      copy:
+        src: "{{ local_app_dir }}/api/"
+        dest: "{{ app_dir }}/api/"
+        mode: preserve
+
+    - name: Copy UI from local/app
+      copy:
+        src: "{{ local_app_dir }}/ui/"
+        dest: "{{ app_dir }}/ui/"
+        mode: preserve
+
+    - name: Copy Grafana from local/app
+      copy:
+        src: "{{ local_app_dir }}/grafana/"
+        dest: "{{ app_dir }}/grafana/"
+        mode: preserve
+
+    - name: Template init.sql with parameterized naming
+      template:
+        src: "{{ playbook_dir }}/../roles/taskyhub_deploy/templates/init.sql.j2"
+        dest: "{{ app_dir }}/init.sql"
+        mode: "0644"
+
+    - name: Template docker-compose.yml (server version)
+      template:
+        src: "{{ playbook_dir }}/../templates/docker-compose.yml.j2"
+        dest: "{{ compose_file }}"
+        mode: "0644"
+
+    - name: Start Postgres first
+      command: docker compose -f "{{ compose_file }}" up -d postgres
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for Postgres healthcheck
+      command: docker inspect --format={{ '{{.State.Health.Status}}' }} {{ postgres_container }}
+      register: postgres_health
+      retries: 60
+      delay: 2
+      changed_when: false
+      until: postgres_health.stdout == "healthy"
+
+    # ---------- SIMPLE ROLE CREATION (idempotent) ----------
+
+    - name: Ensure main app role exists
+      shell: |
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+          "SELECT 1 FROM pg_roles WHERE rolname='{{ postgres_db_user }}'" | grep -q 1 || \
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
+          "CREATE ROLE {{ postgres_db_user }} LOGIN PASSWORD '{{ taskyhub_db_password }}';"
+      args:
+        executable: /bin/bash
+
+    - name: Ensure AE (n8n) role exists
+      shell: |
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+          "SELECT 1 FROM pg_roles WHERE rolname='{{ ae_db_user }}'" | grep -q 1 || \
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
+          "CREATE ROLE {{ ae_db_user }} LOGIN PASSWORD '{{ ae_db_password }}';"
+      args:
+        executable: /bin/bash
+
+    - name: Ensure Grafana role exists
+      shell: |
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+          "SELECT 1 FROM pg_roles WHERE rolname='{{ grafana_db_user }}'" | grep -q 1 || \
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
+          "CREATE ROLE {{ grafana_db_user }} LOGIN PASSWORD '{{ grafana_db_password }}';"
+      args:
+        executable: /bin/bash
+
+    # ---------- SIMPLE DATABASE CREATION (idempotent) ----------
+
+    - name: Ensure main app database exists
+      shell: |
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+          "SELECT 1 FROM pg_database WHERE datname='{{ postgres_db_name }}'" | grep -q 1 || \
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
+          "CREATE DATABASE {{ postgres_db_name }} OWNER {{ postgres_db_user }};"
+      args:
+        executable: /bin/bash
+
+    - name: Ensure AE (n8n) database exists
+      shell: |
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+          "SELECT 1 FROM pg_database WHERE datname='{{ ae_db_name }}'" | grep -q 1 || \
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
+          "CREATE DATABASE {{ ae_db_name }} OWNER {{ ae_db_user }};"
+      args:
+        executable: /bin/bash
+
+    - name: Ensure Grafana database exists
+      shell: |
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+          "SELECT 1 FROM pg_database WHERE datname='{{ grafana_db_name }}'" | grep -q 1 || \
+        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
+          "CREATE DATABASE {{ grafana_db_name }} OWNER {{ grafana_db_user }};"
+      args:
+        executable: /bin/bash
+
+    - name: Wait until required roles exist
+      command: >
+        docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
+        psql -h 127.0.0.1 -U postgres -d postgres -tAc
+        "SELECT COUNT(*) FROM pg_roles WHERE rolname IN ('{{ postgres_db_user }}','{{ ae_db_user }}','{{ grafana_db_user }}');"
+      register: role_count
+      retries: 30
+      delay: 2
+      changed_when: false
+      until: (role_count.stdout | trim) == "3"
+
+    - name: Wait until required databases exist
+      command: >
+        docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
+        psql -h 127.0.0.1 -U postgres -d postgres -tAc
+        "SELECT COUNT(*) FROM pg_database WHERE datname IN ('{{ postgres_db_name }}','{{ ae_db_name }}','{{ grafana_db_name }}');"
+      register: db_count
+      retries: 30
+      delay: 2
+      changed_when: false
+      until: (db_count.stdout | trim) == "3"
+
+    # ---------- Schema grants ----------
+
+    - name: Ensure schema grants in main app database
+      command: >
+        docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ postgres_db_name }} -v ON_ERROR_STOP=1 -c
+        "GRANT ALL ON SCHEMA public TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ postgres_db_user }}; GRANT USAGE ON SCHEMA public TO {{ grafana_db_user }}; GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ grafana_db_user }}; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {{ grafana_db_user }};"
+
+    - name: Ensure schema grants in AE (n8n) database
+      command: >
+        docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ ae_db_name }} -v ON_ERROR_STOP=1 -c
+        "GRANT ALL ON SCHEMA public TO {{ ae_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ ae_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ ae_db_user }}; GRANT USAGE ON SCHEMA public TO {{ postgres_db_user }}; GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ postgres_db_user }}; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {{ postgres_db_user }};"
+
+    - name: Ensure schema grants in Grafana database
+      command: >
+        docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ grafana_db_name }} -v ON_ERROR_STOP=1 -c
+        "GRANT ALL ON SCHEMA public TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ grafana_db_user }};"
+
+    # ---------- App tables & default users ----------
+
+    - name: Run init.sql to create tables and default users
+      shell: |
+        docker exec -e PGPASSWORD='{{ postgres_password }}' -i {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d {{ postgres_db_name }} <<'SQL'
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          subscription_id TEXT NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          name TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'user'
+        );
+
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id TEXT PRIMARY KEY,
+          tier TEXT NOT NULL,
+          seat_limit INTEGER NOT NULL DEFAULT 5,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        INSERT INTO subscriptions (id, tier, seat_limit)
+        VALUES ('{{ subscription_id }}', '{{ subscription_tier }}', 5)
+        ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO users (id, subscription_id, email, password, name, role) VALUES
+        ('1', '{{ subscription_id }}', '{{ default_admin_username }}@taskyhub.local', '{{ admin_password_hash }}', 'Admin User', 'admin'),
+        ('2', '{{ subscription_id }}', '{{ default_user_username }}@taskyhub.local', '{{ user_password_hash }}', 'Standard User', 'user')
+        ON CONFLICT (id) DO NOTHING;
+        SQL
+      args:
+        executable: /bin/bash
+
+    - name: Ensure TaskyHub app tables exist
+      command: >
+        docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
+        psql -h 127.0.0.1 -U postgres -d {{ postgres_db_name }} -tAc
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('users','subscriptions');"
+      register: app_tables
+      retries: 30
+      delay: 2
+      changed_when: false
+      until: (app_tables.stdout | trim) == "2"
+
+    # ---------- Start services: API, AE (n8n), Grafana, UI ----------
+
+    - name: Start API after DB is ready
+      command: docker compose -f "{{ compose_file }}" up -d api
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Start AE (n8n) after API
+      command: docker compose -f "{{ compose_file }}" up -d ae
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Start Grafana after AE
+      command: docker compose -f "{{ compose_file }}" up -d grafana
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Start UI after backend services
+      command: docker compose -f "{{ compose_file }}" up -d ui
+      args:
+        chdir: "{{ app_dir }}"
+
+    # ---------- Nginx config ----------
+
+    - name: Template nginx config
+      template:
+        src: "{{ playbook_dir }}/../templates/ui/tasky.conf.j2"
+        dest: "{{ nginx_conf_path }}"
+      when: nginx_conf_path is defined
+
+    - name: Enable nginx site
+      file:
+        src: "{{ nginx_conf_path }}"
+        dest: "{{ nginx_enabled_path }}"
+        state: link
+        force: yes
+      when: nginx_enabled_path is defined
+
+    - name: Test nginx config
+      command: nginx -t
+      when: nginx_conf_path is defined
+
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_conf_path is defined
+
+  post_tasks:
+    - name: Deployment complete
+      debug:
+        msg: |
+          ==========================================
+          ✅ TaskyHub Deployment Complete!
+          ==========================================
+          Customer: {{ customer_name }}
+          Access: https://{{ domain_name }}
+          
+          Database Configuration:
+            - Main DB: {{ postgres_db_name }} / {{ postgres_db_user }}
+            - AE DB: {{ ae_db_name }} / {{ ae_db_user }}
+            - Grafana DB: {{ grafana_db_name }} / {{ grafana_db_user }}
+          
+          Default Users:
+            - Admin: {{ default_admin_username }}@taskyhub.local
+            - User: {{ default_user_username }}@taskyhub.local
+          ==========================================

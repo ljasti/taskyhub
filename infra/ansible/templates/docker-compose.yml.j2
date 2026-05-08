@@ -1,0 +1,142 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: "{{ customer_name }}_postgres"
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "{{ postgres_password }}"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - taskyhub_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres -h 127.0.0.1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  ae:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: "{{ customer_name }}_ae"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: "{{ ae_db_name }}"
+      DB_POSTGRESDB_USER: "{{ ae_db_user }}"
+      DB_POSTGRESDB_PASSWORD: "{{ ae_db_password }}"
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: "https://{{ domain_name }}/n8n"
+    volumes:
+      - ae_data:/home/node/.n8n
+    networks:
+      - taskyhub_net
+    ports:
+      - "5678:5678"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: "{{ customer_name }}_grafana"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+
+      # Branding
+      GF_BRANDING_APP_TITLE: TaskyHub
+      GF_BRANDING_LOGIN_TITLE: TaskyHub Login
+
+      # Security - Allow embedding
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      
+      # Auth
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      
+      # Default dashboard
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/taskyhub-overview.json
+
+      # Database configuration with parameterized names
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: postgres
+      GF_DATABASE_NAME: "{{ grafana_db_name }}"
+      GF_DATABASE_USER: "{{ grafana_db_user }}"
+      GF_DATABASE_PASSWORD: "{{ grafana_db_password }}"
+      GF_DATABASE_SSL_MODE: disable
+
+    ports:
+      - "3000:3000"
+    networks:
+      - taskyhub_net
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: "{{ customer_name }}_api"
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      JWT_SECRET: "{{ jwt_secret }}"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: "{{ postgres_db_name }}"
+      DB_USER: "{{ postgres_db_user }}"
+      DB_PASSWORD: "{{ taskyhub_db_password }}"
+      GRAFANA_URL: http://grafana:3000
+      AE_URL: http://ae:5678
+    volumes:
+      - ./api/data:/usr/src/app/data
+    networks:
+      - taskyhub_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: "{{ customer_name }}_ui"
+    restart: unless-stopped
+    environment:
+      API_URL: "https://{{ domain_name }}/api"
+    ports:
+      - "8080:80"
+    networks:
+      - taskyhub_net
+    depends_on:
+      - api
+
+volumes:
+  pg_data:
+    name: "{{ customer_name }}_pg_data"
+  ae_data:
+    name: "{{ customer_name }}_ae_data"
+  grafana_data:
+    name: "{{ customer_name }}_grafana_data"
+
+networks:
+  taskyhub_net:
+    name: "{{ customer_name }}_taskyhub_net"
+    driver: bridge

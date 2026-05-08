@@ -1,0 +1,26 @@
+---
+# Database naming with customer prefix
+postgres_db_user: "th_db_{{ customer_name }}"
+ae_db_user: "th_ae_{{ customer_name }}"
+grafana_db_user: "th_grafana_{{ customer_name }}"
+
+postgres_db_name: "th_app_{{ customer_name }}"
+ae_db_name: "th_ae_{{ customer_name }}"
+grafana_db_name: "th_grafana_{{ customer_name }}"
+
+# Application users
+default_admin_username: "th-{{ customer_name }}-admin"
+default_user_username: "th-{{ customer_name }}-user"
+
+# Subscription ID
+subscription_id: "sub-{{ customer_name }}-{{ subscription_tier | default('basic') }}"
+
+# Container naming
+container_prefix: "{{ customer_name }}"
+
+# Application directory
+app_dir: "/opt/taskyhub"
+
+# Allow customer-specific overrides
+custom_user_prefix: "{{ customer_user_prefix | default('th-' + customer_name) }}"
+

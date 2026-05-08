@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: n8n_user
+    secureJsonData:
+      password: "n8n_pwd"
+    jsonData:
+      database: n8n_db
+      sslmode: disable
+    isDefault: true
+    editable: true

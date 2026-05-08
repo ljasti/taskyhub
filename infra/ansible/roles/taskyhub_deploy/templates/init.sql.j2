@@ -1,0 +1,69 @@
+-- Create database users with parameterized naming
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ postgres_db_user }}') THEN
+    CREATE ROLE {{ postgres_db_user }} LOGIN PASSWORD '{{ taskyhub_db_password }}';
+  ELSE
+    ALTER ROLE {{ postgres_db_user }} WITH LOGIN PASSWORD '{{ taskyhub_db_password }}';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ ae_db_user }}') THEN
+    CREATE ROLE {{ ae_db_user }} LOGIN PASSWORD '{{ ae_db_password }}';
+  ELSE
+    ALTER ROLE {{ ae_db_user }} WITH LOGIN PASSWORD '{{ ae_db_password }}';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ grafana_db_user }}') THEN
+    CREATE ROLE {{ grafana_db_user }} LOGIN PASSWORD '{{ grafana_db_password }}';
+  ELSE
+    ALTER ROLE {{ grafana_db_user }} WITH LOGIN PASSWORD '{{ grafana_db_password }}';
+  END IF;
+END
+$$;
+
+-- Create databases with parameterized naming
+SELECT 'CREATE DATABASE {{ postgres_db_name }} OWNER {{ postgres_db_user }}'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ postgres_db_name }}') \gexec
+
+SELECT 'CREATE DATABASE {{ ae_db_name }} OWNER {{ ae_db_user }}'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ ae_db_name }}') \gexec
+
+SELECT 'CREATE DATABASE {{ grafana_db_name }} OWNER {{ grafana_db_user }}'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ grafana_db_name }}') \gexec
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE {{ postgres_db_name }} TO {{ postgres_db_user }};
+GRANT ALL PRIVILEGES ON DATABASE {{ ae_db_name }} TO {{ ae_db_user }};
+GRANT ALL PRIVILEGES ON DATABASE {{ grafana_db_name }} TO {{ grafana_db_user }};
+
+-- Connect to main app database and create schema
+\connect {{ postgres_db_name }};
+
+-- Create users table
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  subscription_id TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user'
+);
+
+-- Create subscriptions table
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id TEXT PRIMARY KEY,
+  tier TEXT NOT NULL,
+  seat_limit INTEGER NOT NULL DEFAULT 5,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default subscription with parameterized ID
+INSERT INTO subscriptions (id, tier, seat_limit)
+VALUES ('{{ subscription_id }}', '{{ subscription_tier }}', 5)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert default users with parameterized naming (build email inline)
+INSERT INTO users (id, subscription_id, email, password, name, role) VALUES
+('1', '{{ subscription_id }}', '{{ default_admin_username }}@taskyhub.local', '{{ admin_password_hash }}', 'Admin User', 'admin'),
+('2', '{{ subscription_id }}', '{{ default_user_username }}@taskyhub.local', '{{ user_password_hash }}', 'Standard User', 'user')
+ON CONFLICT (id) DO NOTHING;

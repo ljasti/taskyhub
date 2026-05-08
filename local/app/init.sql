@@ -1,12 +1,31 @@
--- Create separate databases
-CREATE DATABASE taskyhub_db;
-CREATE DATABASE n8n_db;
-CREATE DATABASE grafana_db;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'taskyhub_user') THEN
+    CREATE ROLE taskyhub_user LOGIN PASSWORD 'taskyhub_pwd';
+  ELSE
+    ALTER ROLE taskyhub_user WITH LOGIN PASSWORD 'taskyhub_pwd';
+  END IF;
 
--- Create users
-CREATE USER taskyhub_user WITH PASSWORD 'taskyhub_pwd';
-CREATE USER n8n_user WITH PASSWORD 'n8n_pwd';
-CREATE USER grafana_user WITH PASSWORD 'grafana_pwd';
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'n8n_user') THEN
+    CREATE ROLE n8n_user LOGIN PASSWORD 'n8n_pwd';
+  ELSE
+    ALTER ROLE n8n_user WITH LOGIN PASSWORD 'n8n_pwd';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_user') THEN
+    CREATE ROLE grafana_user LOGIN PASSWORD 'grafana_pwd';
+  ELSE
+    ALTER ROLE grafana_user WITH LOGIN PASSWORD 'grafana_pwd';
+  END IF;
+END
+$$;
+
+SELECT 'CREATE DATABASE taskyhub_db OWNER taskyhub_user'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'taskyhub_db') \gexec
+SELECT 'CREATE DATABASE n8n_db OWNER n8n_user'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'n8n_db') \gexec
+SELECT 'CREATE DATABASE grafana_db OWNER grafana_user'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'grafana_db') \gexec
 
 -- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE taskyhub_db TO taskyhub_user;

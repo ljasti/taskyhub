@@ -1,180 +1,188 @@
 ---
-- name: Provision TaskyHub Server
-  hosts: all
+- name: Deploy TaskyHub
+  hosts: tasky-server
   become: yes
+
   vars_files:
     - vars.yml
 
+  vars:
+    app_dir: /home/{{ ansible_user }}/taskyhub
+    compose_file: "{{ app_dir }}/docker-compose.yml"
+    local_app_dir: "{{ playbook_dir }}/../../local/app"
+    postgres_container: "{{ customer_name }}_postgres"
+
   tasks:
-    - name: Update and upgrade apt packages
-      apt:
-        update_cache: yes
-        upgrade: yes
 
-    - name: Install required packages
-      apt:
-        name:
-          - curl
-          - git
-          - nginx
-          - certbot
-          - python3-certbot-nginx
-        state: present
+  - name: Create app directory
+    file:
+      path: "{{ app_dir }}"
+      state: directory
+      mode: "0755"
 
-    - name: Create "tasker" user
-      user:
-        name: tasker
-        shell: /bin/bash
-        create_home: yes
-        state: present
+  - name: Copy API
+    copy:
+      src: "{{ local_app_dir }}/api/"
+      dest: "{{ app_dir }}/api/"
+      mode: preserve
 
-    - name: Install Docker
-      shell: curl -fsSL https://get.docker.com | sh
-      args:
-        creates: /usr/bin/docker
+  - name: Copy UI
+    copy:
+      src: "{{ local_app_dir }}/ui/"
+      dest: "{{ app_dir }}/ui/"
+      mode: preserve
 
-    - name: Enable and start Docker
-      systemd:
-        name: docker
-        enabled: yes
-        state: started
+  - name: Copy Grafana
+    copy:
+      src: "{{ local_app_dir }}/grafana/"
+      dest: "{{ app_dir }}/grafana/"
+      mode: preserve
 
-    - name: Add "tasker" user to docker group
-      user:
-        name: tasker
-        groups: docker
-        append: yes
+  - name: Copy init.sql
+    copy:
+      src: "{{ local_app_dir }}/init.sql"
+      dest: "{{ app_dir }}/init.sql"
+      mode: "0644"
 
-    - name: Install docker-compose plugin
-      apt:
-        name: docker-compose-plugin
-        state: present
+  - name: Template docker-compose.yml
+    template:
+      src: docker-compose.yml.j2
+      dest: "{{ compose_file }}"
 
-    - name: Create directories
-      file:
-        path: "/opt/{{ customer_name }}/{{ item }}"
-        state: directory
-        owner: tasker
-        group: tasker
-        mode: '0755'
-      loop:
-        - app
-        - app/api
-        - app/api/data
-        - app/ui
-        - app/grafana
-        - app/grafana/provisioning
-        - app/grafana/provisioning/datasources
-        - app/grafana/provisioning/dashboards
-        - app/grafana/dashboards
-        - ui
-        - data
+  - name: Start Postgres first
+    command: docker compose -f "{{ compose_file }}" up -d postgres
+    args:
+      chdir: "{{ app_dir }}"
 
-    - name: Copy app files (api, grafana, init.sql, UI)
-      copy:
-        src: "app/{{ item }}"
-        dest: "/opt/{{ customer_name }}/app/{{ item }}"
-        owner: tasker
-        group: tasker
-        mode: "{{ item.endswith('.sh') or item.endswith('/docker-entrypoint.sh') ? '0755' : '0644' }}"
-      loop:
-        - init.sql
-        - api/Dockerfile
-        - api/index.js
-        - api/package.json
-        - api/.dockerignore
-        - ui/Dockerfile
-        - ui/docker-entrypoint.sh
-        - ui/config.template.js
-        - grafana/provisioning/datasources/datasource.yml
-        - grafana/provisioning/dashboards/dashboard.yml
+  - name: Wait for Postgres healthcheck to report healthy
+    command: docker inspect --format={{ '{{.State.Health.Status}}' }} {{ postgres_container }}
+    register: postgres_health
+    retries: 60
+    delay: 2
+    changed_when: false
+    until: postgres_health.stdout == "healthy"
 
-    - name: Copy Grafana dashboards
-      copy:
-        src: "app/grafana/dashboards/{{ item }}"
-        dest: "/opt/{{ customer_name }}/app/grafana/dashboards/{{ item }}"
-        owner: tasker
-        group: tasker
-        mode: '0644'
-      loop:
-        - taskyhub-overview.json
-        - execution-metrics.json
-        - failure-monitoring.json
-        - performance.json
+  - name: Ensure databases, users, passwords, and grants are correct
+    shell: |
+      docker exec -e PGPASSWORD='{{ postgres_password }}' -i {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'taskyhub_user') THEN
+          CREATE ROLE taskyhub_user LOGIN PASSWORD '{{ taskyhub_db_password }}';
+        ELSE
+          ALTER ROLE taskyhub_user WITH LOGIN PASSWORD '{{ taskyhub_db_password }}';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ae_user') THEN
+          CREATE ROLE ae_user LOGIN PASSWORD '{{ ae_db_password }}';
+        ELSE
+          ALTER ROLE ae_user WITH LOGIN PASSWORD '{{ ae_db_password }}';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_user') THEN
+          CREATE ROLE grafana_user LOGIN PASSWORD '{{ grafana_db_password }}';
+        ELSE
+          ALTER ROLE grafana_user WITH LOGIN PASSWORD '{{ grafana_db_password }}';
+        END IF;
+      END
+      $$;
 
-    - name: Template and copy UI files
-      template:
-        src: "ui/{{ item }}"
-        dest: "/opt/{{ customer_name }}/ui/{{ item }}"
-        owner: tasker
-        group: tasker
-        mode: '0644'
-      loop:
-        - index.html
-        - login.html
-        - dashboard.html
-        - analytics.html
+      SELECT 'CREATE DATABASE taskyhub_db OWNER taskyhub_user'
+      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'taskyhub_db') \gexec
+      SELECT 'CREATE DATABASE ae_db OWNER ae_user'
+      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'ae_db') \gexec
+      SELECT 'CREATE DATABASE grafana_db OWNER grafana_user'
+      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'grafana_db') \gexec
 
-    - name: Template and copy docker-compose.yml
-      template:
-        src: app/docker-compose.yml.j2
-        dest: "/opt/{{ customer_name }}/app/docker-compose.yml"
-        owner: tasker
-        group: tasker
-        mode: '0644'
+      GRANT ALL PRIVILEGES ON DATABASE taskyhub_db TO taskyhub_user;
+      GRANT ALL PRIVILEGES ON DATABASE ae_db TO ae_user;
+      GRANT ALL PRIVILEGES ON DATABASE grafana_db TO grafana_user;
+      SQL
+    args:
+      executable: /bin/bash
 
-    - name: Template and copy nginx config
-      template:
-        src: tasky.conf.j2
-        dest: "/etc/nginx/sites-available/{{ customer_name }}.conf"
-        mode: '0644'
+  - name: Wait until required roles exist
+    command: >
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
+      psql -h 127.0.0.1 -U postgres -d postgres -tAc
+      "SELECT COUNT(*) FROM pg_roles WHERE rolname IN ('taskyhub_user','ae_user','grafana_user');"
+    register: role_count
+    retries: 30
+    delay: 2
+    changed_when: false
+    until: (role_count.stdout | trim) == "3"
 
-    - name: Enable nginx site
-      file:
-        src: "/etc/nginx/sites-available/{{ customer_name }}.conf"
-        dest: "/etc/nginx/sites-enabled/{{ customer_name }}.conf"
-        state: link
+  - name: Wait until required databases exist
+    command: >
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
+      psql -h 127.0.0.1 -U postgres -d postgres -tAc
+      "SELECT COUNT(*) FROM pg_database WHERE datname IN ('taskyhub_db','ae_db','grafana_db');"
+    register: db_count
+    retries: 30
+    delay: 2
+    changed_when: false
+    until: (db_count.stdout | trim) == "3"
 
-    - name: Disable default nginx site
-      file:
-        path: /etc/nginx/sites-enabled/default
-        state: absent
+  - name: Ensure schema grants in taskyhub_db
+    command: >
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d taskyhub_db -v ON_ERROR_STOP=1 -c
+      "GRANT ALL ON SCHEMA public TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO taskyhub_user; GRANT USAGE ON SCHEMA public TO grafana_user; GRANT SELECT ON ALL TABLES IN SCHEMA public TO grafana_user; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO grafana_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO grafana_user;"
 
-    - name: Test nginx config
-      command: nginx -t
+  - name: Ensure schema grants in ae_db
+    command: >
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d ae_db -v ON_ERROR_STOP=1 -c
+      "GRANT ALL ON SCHEMA public TO ae_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ae_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ae_user; GRANT USAGE ON SCHEMA public TO taskyhub_user; GRANT SELECT ON ALL TABLES IN SCHEMA public TO taskyhub_user; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO taskyhub_user;"
 
-    - name: Restart nginx
-      systemd:
-        name: nginx
-        state: restarted
+  - name: Ensure schema grants in grafana_db
+    command: >
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d grafana_db -v ON_ERROR_STOP=1 -c
+      "GRANT ALL ON SCHEMA public TO grafana_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO grafana_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO grafana_user;"
 
-    - name: Set permissions for n8n data
-      file:
-        path: "/opt/{{ customer_name }}/data/n8n"
-        owner: '1000'
-        group: '1000'
-        mode: '0755'
-        recurse: yes
-        state: directory
+  - name: Ensure TaskyHub app tables exist from init.sql
+    command: >
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
+      psql -h 127.0.0.1 -U postgres -d taskyhub_db -tAc
+      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('users','subscriptions');"
+    register: app_tables
+    retries: 30
+    delay: 2
+    changed_when: false
+    until: (app_tables.stdout | trim) == "2"
 
-    - name: Start TaskyHub with docker-compose
-      command: docker compose up -d
-      args:
-        chdir: "/opt/{{ customer_name }}/app"
-      become_user: tasker
+  - name: Start API after DB is ready
+    command: docker compose -f "{{ compose_file }}" up -d api
+    args:
+      chdir: "{{ app_dir }}"
 
-    - name: Wait for n8n to be ready
-      wait_for:
-        port: 5678
-        delay: 10
-        timeout: 60
+  - name: Start ae after API
+    command: docker compose -f "{{ compose_file }}" up -d ae
+    args:
+      chdir: "{{ app_dir }}"
 
-    - name: Obtain SSL certificate
-      command: "certbot --nginx -d {{ domain_name }} --agree-tos -m admin@{{ domain_name }} -n"
-      args:
-        creates: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
-      ignore_errors: yes
+  - name: Start Grafana after ae
+    command: docker compose -f "{{ compose_file }}" up -d grafana
+    args:
+      chdir: "{{ app_dir }}"
 
-    - name: Success message
-      debug:
-        msg: "TaskyHub deployment complete! Access at https://{{ domain_name }}"
+  - name: Start UI after backend services
+    command: docker compose -f "{{ compose_file }}" up -d ui
+    args:
+      chdir: "{{ app_dir }}"
+
+  - name: Template nginx config
+    template:
+      src: ui/tasky.conf.j2
+      dest: "{{ nginx_conf_path }}"
+
+  - name: Enable nginx site
+    file:
+      src: "{{ nginx_conf_path }}"
+      dest: "{{ nginx_enabled_path }}"
+      state: link
+      force: yes
+
+  - name: Test nginx config
+    command: nginx -t
+
+  - name: Restart nginx
+    service:
+      name: nginx
+      state: restarted

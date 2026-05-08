@@ -1,0 +1,68 @@
+---
+- name: Create SuperTasky user with sudo privileges
+  user:
+    name: supertasky
+    groups: sudo,docker
+    append: yes
+    shell: /bin/bash
+    create_home: yes
+    state: present
+
+- name: Read ubuntu authorized_keys from server
+  slurp:
+    src: /home/ubuntu/.ssh/authorized_keys
+  register: ubuntu_authorized_keys
+
+- name: Fail if ubuntu has no authorized_keys to copy
+  fail:
+    msg: "Missing /home/ubuntu/.ssh/authorized_keys on target; cannot copy SSH access to supertasky/tasky."
+  when: ubuntu_authorized_keys is not defined or ubuntu_authorized_keys.content is not defined or (ubuntu_authorized_keys.content | length) == 0
+
+- name: Ensure SuperTasky has ubuntu SSH keys
+  authorized_key:
+    user: supertasky
+    key: "{{ ubuntu_authorized_keys.content | b64decode }}"
+    state: present
+    exclusive: yes
+
+- name: Create Tasky user (limited privileges)
+  user:
+    name: tasky
+    groups: docker
+    append: yes
+    shell: /bin/bash
+    create_home: yes
+    state: present
+
+- name: Ensure Tasky has ubuntu SSH keys
+  authorized_key:
+    user: tasky
+    key: "{{ ubuntu_authorized_keys.content | b64decode }}"
+    state: present
+    exclusive: yes
+
+- name: Configure sudo for Tasky (limited commands)
+  copy:
+    content: |
+      # Tasky - Limited sudo access for TaskyHub application management
+      Cmnd_Alias TASKY_DOCKER = /usr/bin/docker, /usr/bin/docker-compose, /usr/local/bin/docker-compose
+      Cmnd_Alias TASKY_NGINX = /usr/bin/systemctl restart nginx, /usr/bin/systemctl reload nginx, /usr/bin/systemctl status nginx
+      Cmnd_Alias TASKY_LOGS = /usr/bin/journalctl
+
+      tasky ALL=(ALL) NOPASSWD: TASKY_DOCKER, TASKY_NGINX, TASKY_LOGS
+    dest: /etc/sudoers.d/tasky
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "/usr/sbin/visudo -cf %s"
+
+- name: Ensure SuperTasky has full sudo access
+  copy:
+    content: |
+      # SuperTasky - Full sudo access (equivalent to ubuntu user)
+      supertasky ALL=(ALL:ALL) NOPASSWD: ALL
+    dest: /etc/sudoers.d/supertasky
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "/usr/sbin/visudo -cf %s"

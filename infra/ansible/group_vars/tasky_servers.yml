@@ -1,0 +1,8 @@
+---
+# Example shared settings for tasky_servers
+
+environment: "production"
+project_name: "taskyhub"
+
+# DO NOT keep:
+# app_dir: "/home/ubuntu/taskyhub"

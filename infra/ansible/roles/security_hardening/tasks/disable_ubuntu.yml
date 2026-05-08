@@ -1,0 +1,17 @@
+---
+- name: Disable ubuntu user login
+  user:
+    name: ubuntu
+    shell: /usr/sbin/nologin
+    state: present
+
+- name: Lock ubuntu user password
+  command: passwd -l ubuntu
+  changed_when: false
+
+- name: Remove ubuntu from sudo group
+  user:
+    name: ubuntu
+    groups: sudo
+    append: no
+    remove: yes

@@ -1,0 +1,56 @@
+#!/bin/bash
+
+set -e
+
+ADMIN_USER="supertasker"
+NORMAL_USER="tasker"
+OLD_USER="ubuntu"
+
+echo "🔐 Creating admin user: $ADMIN_USER"
+id "$ADMIN_USER" &>/dev/null || sudo adduser --disabled-password --gecos "" "$ADMIN_USER"
+
+echo "👤 Creating normal user: $NORMAL_USER"
+id "$NORMAL_USER" &>/dev/null || sudo adduser --disabled-password --gecos "" "$NORMAL_USER"
+
+# -------------------------
+# ADMIN USER (same power as ubuntu)
+# -------------------------
+echo "⚙️ Setting up admin user..."
+
+sudo usermod -aG sudo "$ADMIN_USER"
+
+sudo mkdir -p /home/$ADMIN_USER/.ssh
+
+if [ -f /home/$OLD_USER/.ssh/authorized_keys ]; then
+    sudo cp /home/$OLD_USER/.ssh/authorized_keys /home/$ADMIN_USER/.ssh/authorized_keys
+fi
+
+sudo chown -R $ADMIN_USER:$ADMIN_USER /home/$ADMIN_USER
+sudo chmod 700 /home/$ADMIN_USER/.ssh
+sudo chmod 600 /home/$ADMIN_USER/.ssh/authorized_keys
+
+# -------------------------
+# NORMAL USER (no sudo)
+# -------------------------
+echo "⚙️ Setting up normal user..."
+
+sudo mkdir -p /home/$NORMAL_USER/.ssh
+
+if [ -f /home/$OLD_USER/.ssh/authorized_keys ]; then
+    sudo cp /home/$OLD_USER/.ssh/authorized_keys /home/$NORMAL_USER/.ssh/authorized_keys
+fi
+
+sudo chown -R $NORMAL_USER:$NORMAL_USER /home/$NORMAL_USER
+sudo chmod 700 /home/$NORMAL_USER/.ssh
+sudo chmod 600 /home/$NORMAL_USER/.ssh/authorized_keys
+
+# -------------------------
+# DISABLE OLD UBUNTU USER
+# -------------------------
+echo "🧹 Disabling ubuntu user..."
+
+sudo passwd -l ubuntu || true
+
+echo "✅ Done!"
+echo "👉 Admin user: $ADMIN_USER (sudo enabled)"
+echo "👉 Normal user: $NORMAL_USER (no sudo)"

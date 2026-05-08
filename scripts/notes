@@ -1,0 +1,10 @@
+Issues to be fixed:
+
+1. Ansible inventory is not getting updated after terraform script run, I manually updated the IP and re run again
+
+ansible-playbook -v \
+  -i infra/ansible/inventory.ini \
+  infra/ansible/playbook.yml \
+  --private-key /home/jlk/keys/poc.pem \
+  -u ubuntu \
+  --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"

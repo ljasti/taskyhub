@@ -26,6 +26,7 @@ $requiredVars = @(
     'AWS_SECRET_ACCESS_KEY',
     'AWS_REGION',
     'KEY_PAIR_NAME',
+    'INSTANCE_TYPE',
     'CUSTOMER_NAME',
     'DOMAIN_NAME',
     'N8N_PASSWORD',
@@ -63,13 +64,22 @@ Push-Location ../infra/terraform
 Write-Host "`n[1/5] Initializing Terraform..." -ForegroundColor Cyan
 terraform init
 
+Write-Host "`nClearing stale taint (if present)..." -ForegroundColor Cyan
+try {
+    terraform untaint aws_instance.tasky_server | Out-Null
+} catch {
+    # No taint present; continue.
+}
+
 Write-Host "`n[2/5] Creating terraform.auto.tfvars with your configuration..." -ForegroundColor Cyan
 $tfvars = @"
 aws_region           = "$env:AWS_REGION"
+instance_type        = "$env:INSTANCE_TYPE"
 key_pair_name        = "$env:KEY_PAIR_NAME"
+ssh_private_key_path = "$env:SSH_KEY_PATH"
 customer_name        = "$env:CUSTOMER_NAME"
 domain_name          = "$env:DOMAIN_NAME"
-n8n_admin_password   = "$env:N8N_PASSWORD"
+ae_admin_password    = "$env:N8N_PASSWORD"
 admin_password       = "$env:ADMIN_PASSWORD"
 user_password        = "$env:USER_PASSWORD"
 "@
@@ -99,11 +109,12 @@ Push-Location ../infra/ansible
 
 Write-Host "`nUpdating Ansible configuration..." -ForegroundColor Cyan
 
-# Update inventory.ini with the instance IP
-(Get-Content inventory.ini) -replace '<INSTANCE_PUBLIC_IP>', $instance_ip | Set-Content inventory.ini
-
-# Update ansible.cfg SSH key path
-(Get-Content ansible.cfg) -replace '~/.ssh/your-key-pair.pem', $env:SSH_KEY_PATH | Set-Content ansible.cfg
+# Generate inventory.ini directly from Terraform output + SSH key path
+$inventory = @"
+[servers]
+tasky-server ansible_host=$instance_ip ansible_user=ubuntu ansible_ssh_private_key_file=$env:SSH_KEY_PATH ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+"@
+Set-Content -Path "inventory.ini" -Value $inventory
 
 # Update vars.yml with customer configuration
 $varsyml = @"
@@ -111,23 +122,27 @@ $varsyml = @"
 customer_name: $env:CUSTOMER_NAME
 domain_name: $env:DOMAIN_NAME
 
-n8n_admin_user: admin
-n8n_admin_password: $env:N8N_PASSWORD
-n8n_timezone: Asia/Kolkata
+email: admin@$env:DOMAIN_NAME
 
-admin_username: admin
-admin_password: $env:ADMIN_PASSWORD
-user_username: user
-user_password: $env:USER_PASSWORD
+postgres_password: postgres_pwd
+ae_db_password: ae_pwd
+grafana_db_password: grafana_pwd
+taskyhub_db_password: taskyhub_pwd
+
+grafana_admin_user: taskyhub_admin
+grafana_admin_password: T4skyhub@dm1n!
+
+jwt_secret: taskyhub-secret
 
 app_base_path: "/opt/$env:CUSTOMER_NAME"
-n8n_path: "/opt/$env:CUSTOMER_NAME/n8n"
-ui_path: "/opt/$env:CUSTOMER_NAME/ui"
-data_path: "/opt/$env:CUSTOMER_NAME/data"
+compose_file: "/opt/$env:CUSTOMER_NAME/docker-compose.yml"
+nginx_conf_path: "/etc/nginx/sites-available/$env:CUSTOMER_NAME.conf"
+nginx_enabled_path: "/etc/nginx/sites-enabled/$env:CUSTOMER_NAME.conf"
 "@
 Set-Content -Path "vars.yml" -Value $varsyml
 
 Write-Host "Running Ansible playbook to configure server..." -ForegroundColor Cyan
+$env:ANSIBLE_HOST_KEY_CHECKING = "False"
 ansible-playbook playbook.yml -i inventory.ini
 
 Pop-Location
@@ -140,7 +155,7 @@ Write-Host "Access Application: https://$env:DOMAIN_NAME" -ForegroundColor Yello
 Write-Host "`nCredentials:" -ForegroundColor Yellow
 Write-Host "  Admin: admin / $env:ADMIN_PASSWORD"
 Write-Host "  User: user / $env:USER_PASSWORD"
-Write-Host "`nn8n Access:" -ForegroundColor Yellow
-Write-Host "  URL: https://$env:DOMAIN_NAME/n8n"
+Write-Host "`nAE Access:" -ForegroundColor Yellow
+Write-Host "  URL: https://$env:DOMAIN_NAME/ae"
 Write-Host "  User: admin / $env:N8N_PASSWORD"
 Write-Host "`nIMPORTANT: Update your Namecheap DNS to point to $instance_ip`n" -ForegroundColor Cyan

@@ -1,34 +1,23 @@
 ---
-# Customer and Domain Configuration
-customer_name: besty
-domain_name: besty.amroth.life
+customer_name: "besty"
+domain_name: "besty.taskyhub.com"
 
-# n8n Configuration
-n8n_admin_user: admin
-n8n_admin_password: StrongPassword123!
-n8n_timezone: Asia/Kolkata
+postgres_db_name: "th_db_besty"
+postgres_db_user: "th_db_besty"
 
-# Dashboard Credentials
-admin_username: admin
-admin_password: admin123
-user_username: user
-user_password: user123
+ae_db_name: "th_ae_besty"
+ae_db_user: "th_ae_besty"
 
-# Application paths
-app_base_path: "/opt/{{ customer_name }}"
-app_path: "/opt/{{ customer_name }}/app"
-ui_path: "/opt/{{ customer_name }}/ui"
-data_path: "/opt/{{ customer_name }}/data"
+grafana_db_name: "th_grafana_besty"
+grafana_db_user: "th_grafana_besty"
 
-# JWT Configuration
-jwt_secret: taskyhub-secret
+subscription_id: "besty-subscription-id"
+subscription_tier: "pro"
 
-# Database configurations
-postgres_password: changeme_postgres_superuser_pwd
-n8n_db_password: changeme_n8n_db_pwd
-grafana_db_password: changeme_grafana_db_pwd
-taskyhub_db_password: changeme_taskyhub_db_pwd
+default_admin_username: "admin"
+default_user_username: "user"
 
-# Grafana Configuration
-grafana_admin_user: admin
-grafana_admin_password: changeme_grafana_admin
+# DO NOT put:
+# app_base_path: "/opt/besty"
+# compose_file: "/opt/besty/docker-compose.yml"
+# app_dir: "/home/ubuntu/taskyhub"

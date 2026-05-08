@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TaskyHub Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+  <link rel="alternate icon" href="images/favicon.ico">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 20px 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      min-width: 360px;
+    }
+
+    .brand:hover {
+      opacity: 0.9;
+    }
+
+    .brand img {
+      height: 144px;
+      display: block;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    nav a, nav button {
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    nav a:hover, nav button:hover {
+      color: #f97316;
+      background: rgba(249, 115, 22, 0.1);
+    }
+
+    nav a.active, nav button.active {
+      color: #f97316;
+      background: rgba(249, 115, 22, 0.15);
+    }
+
+    button {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      color: #0f172a;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.3);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 12px -2px rgba(249, 115, 22, 0.4);
+    }
+
+    .container {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 24px 32px;
+    }
+
+    .filters {
+      background: linear-gradient(145deg, #111827 0%, #0f172a 100%);
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .filter-group label {
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+
+    select, input[type="date"], input[type="text"] {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(51, 65, 85, 0.9);
+      background: #0f172a;
+      color: white;
+      font-size: 0.95rem;
+      outline: none;
+      min-width: 150px;
+    }
+
+    select:focus, input:focus {
+      border-color: #f97316;
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    }
+
+    .grid-full {
+      grid-template-columns: 1fr;
+    }
+
+    .card {
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      padding: 28px;
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(249, 115, 22, 0.3);
+      box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .card h3 {
+      font-size: 1.35rem;
+      margin-bottom: 12px;
+      color: #f9fafb;
+    }
+
+    .card h4 {
+      font-size: 1.1rem;
+      margin: 16px 0 12px;
+      color: #e5e7eb;
+    }
+
+    .card p {
+      color: #94a3b8;
+      line-height: 1.7;
+    }
+
+    .kpi-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #f97316 0%, #fbbf24 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 8px 0;
+    }
+
+    .kpi-label {
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    th {
+      color: #f97316;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      color: #e5e7eb;
+    }
+
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .status-success {
+      background: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+    }
+
+    .status-error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
+
+    .status-running {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3b82f6;
+    }
+
+    .status-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+    }
+
+    .health-excellent {
+      background: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+    }
+
+    .health-healthy {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3b82f6;
+    }
+
+    .health-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+    }
+
+    .health-critical {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .dashboard-section {
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      color: #f9fafb;
+    }
+
+    .alert-banner {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(248, 113, 113, 0.1) 100%);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .alert-warning {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .insight-card {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .insight-card.error {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(248, 113, 113, 0.1) 100%);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .insight-card.warning {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      color: #94a3b8;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: rgba(249, 115, 22, 0.1);
+      color: #f97316;
+    }
+
+    .tab-btn.active {
+      background: rgba(249, 115, 22, 0.15);
+      color: #f97316;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand" onclick="window.location.href='dashboard.html'">
+      <img src="images/logo.png" alt="TaskyHub logo">
+    </div>
+    <div class="header-right">
+      <nav>
+        <button class="active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+        <button data-tab="workflows" onclick="switchTab('workflows')">Workflows</button>
+        <button data-tab="failures" onclick="switchTab('failures')">Failures</button>
+        <button data-tab="insights" onclick="switchTab('insights')">Insights</button>
+        <span id="adminNav" style="display:flex; gap:12px; border-left:1px solid rgba(148,163,184,0.2); padding-left:24px; margin-left:24px;">
+          <button id="openGrafanaBtn" style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);" onclick="openGrafana()">Open Grafana</button>
+          <button id="openN8nBtn" style="background:linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);" onclick="openN8n()">Open n8n</button>
+        </span>
+      </nav>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="filters">
+      <div class="filter-group">
+        <label>Time Range</label>
+        <select id="timeRange" onchange="applyFilters()">
+          <option value="now-1h">Last 1 Hour</option>
+          <option value="now-24h" selected>Last 24 Hours</option>
+          <option value="now-7d">Last 7 Days</option>
+          <option value="now-30d">Last 30 Days</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Search</label>
+        <input type="text" id="searchInput" placeholder="Search workflows..." oninput="applyFilters()">
+      </div>
+    </div>
+
+    <div id="overviewSection" class="dashboard-section">
+      <h2 class="section-title">Executive Overview</h2>
+      <div class="grid" id="overviewGrid"></div>
+      
+      <div class="grid grid-2" style="margin-top: 32px;">
+        <div class="card">
+          <h3>Execution Trend (Last 24h)</h3>
+          <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Success vs Failed</h3>
+          <div class="chart-container">
+            <canvas id="statusChart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid" style="margin-top: 32px;">
+        <div class="card">
+          <h3>Top Active Workflows</h3>
+          <table id="topWorkflowsTable">
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Executions</th>
+              </tr>
+            </thead>
+            <tbody id="topWorkflowsBody"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>Top Failed Workflows</h3>
+          <table id="topFailedTable">
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Failures</th>
+              </tr>
+            </thead>
+            <tbody id="topFailedBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="workflowsSection" class="dashboard-section" style="display:none;">
+      <h2 class="section-title">All Workflows</h2>
+      <div class="card">
+        <table id="workflowsTable">
+          <thead>
+            <tr>
+              <th>Workflow Name</th>
+              <th>ID</th>
+              <th>Status</th>
+              <th>Total Executions</th>
+              <th>Success Rate</th>
+              <th>Failure Rate</th>
+              <th>Avg Duration</th>
+              <th>Last Execution</th>
+              <th>Last Status</th>
+              <th>Health Score</th>
+            </tr>
+          </thead>
+          <tbody id="workflowsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="failuresSection" class="dashboard-section" style="display:none;">
+      <h2 class="section-title">Failure Analytics</h2>
+      
+      <div class="grid" id="failureStatsGrid"></div>
+      
+      <div class="card" style="margin-top:32px;">
+        <h3>Recent Failures</h3>
+        <table id="failuresTable">
+          <thead>
+            <tr>
+              <th>Execution ID</th>
+              <th>Workflow</th>
+              <th>Failed Node</th>
+              <th>Error Type</th>
+              <th>Error Message</th>
+              <th>Failed At</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody id="failuresBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="insightsSection" class="dashboard-section" style="display:none;">
+      <h2 class="section-title">AI Insights</h2>
+      <div id="insightsContainer"></div>
+      
+      <div class="card" style="margin-top:32px;">
+        <h3>System Health</h3>
+        <div class="grid" id="healthGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const API_URL = window.TASKYHUB_CONFIG?.API_URL || 'http://localhost:4000/api';
+    let currentTab = 'overview';
+    let config = {};
+    let currentUser = null;
+    let dashboardPolling = null;
+    let trendChart = null;
+    let statusChart = null;
+    
+    async function apiFetch(endpoint, options = {}) {
+      const token = localStorage.getItem('tasky_token');
+      console.log('JWT Token:', token);
+      
+      if (!token) {
+        console.error('No auth token found');
+        window.location.href = 'login.html';
+        return;
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...(options.headers || {})
+        }
+      });
+      
+      if (response.status === 401) {
+        localStorage.removeItem('tasky_token');
+        localStorage.removeItem('tasky_user');
+        window.location.href = 'login.html';
+        throw new Error('Session expired');
+      }
+      
+      return response.json();
+    }
+
+    const initialToken = localStorage.getItem('tasky_token');
+    if (!initialToken) {
+      window.location = 'login.html';
+    }
+
+    async function applyFilters() {
+      switch (currentTab) {
+        case 'overview':
+          await loadOverviewDashboard();
+          break;
+        case 'workflows':
+          await loadWorkflowsDashboard();
+          break;
+        case 'failures':
+          await loadFailuresDashboard();
+          break;
+        case 'insights':
+          await loadInsightsDashboard();
+          break;
+      }
+    }
+
+    async function switchTab(tab) {
+      currentTab = tab;
+      
+      document.querySelectorAll('nav button[data-tab]').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tab) {
+          btn.classList.add('active');
+        }
+      });
+
+      document.querySelectorAll('.dashboard-section').forEach(section => {
+        section.style.display = 'none';
+      });
+      document.getElementById(tab + 'Section').style.display = 'block';
+
+      await applyFilters();
+    }
+
+    async function loadOverviewDashboard() {
+      const grid = document.getElementById('overviewGrid');
+      grid.innerHTML = '<div class="card"><p>Loading...</p></div>';
+
+      try {
+        const [overviewResult, trendsResult] = await Promise.all([
+          apiFetch('/dashboard/overview'),
+          apiFetch('/dashboard/trends')
+        ]);
+
+        if (!overviewResult.success) {
+          throw new Error(overviewResult.error || 'Unknown API error');
+        }
+
+        const data = overviewResult.data;
+        console.log('Dashboard API Response:', data);
+        
+        grid.innerHTML = `
+          <div class="card">
+            <div class="kpi-label">Total Workflows</div>
+            <div class="kpi-value">${data.totalWorkflows}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Active Workflows</div>
+            <div class="kpi-value">${data.activeWorkflows}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Inactive Workflows</div>
+            <div class="kpi-value">${data.inactiveWorkflows}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Total Executions</div>
+            <div class="kpi-value">${data.totalExecutions}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Successful</div>
+            <div class="kpi-value" style="background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%); -webkit-background-clip: text;">${data.successfulExecutions}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Failed</div>
+            <div class="kpi-value" style="background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); -webkit-background-clip: text;">${data.failedExecutions}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Success Rate</div>
+            <div class="kpi-value">${data.successRate}%</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Failure Rate</div>
+            <div class="kpi-value" style="background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); -webkit-background-clip: text;">${data.failureRate}%</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Avg Execution Time</div>
+            <div class="kpi-value">${Math.round(data.averageExecutionTimeMs)}ms</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Running</div>
+            <div class="kpi-value" style="background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); -webkit-background-clip: text;">${data.runningExecutions}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Last 24h Executions</div>
+            <div class="kpi-value">${data.last24hExecutions}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Last 7d Executions</div>
+            <div class="kpi-value">${data.last7dExecutions}</div>
+          </div>
+        `;
+
+        const topWorkflowsBody = document.getElementById('topWorkflowsBody');
+        topWorkflowsBody.innerHTML = data.topWorkflows.slice(0, 5).map(wf => `
+          <tr>
+            <td>${wf.workflow_name || `Workflow ${wf.workflowId}`}</td>
+            <td>${wf.execution_count}</td>
+          </tr>
+        `).join('');
+
+        const topFailedBody = document.getElementById('topFailedBody');
+        topFailedBody.innerHTML = data.topFailedWorkflows.slice(0, 5).map(wf => `
+          <tr>
+            <td>${wf.workflow_name || `Workflow ${wf.workflowId}`}</td>
+            <td style="color:#ef4444;">${wf.failure_count}</td>
+          </tr>
+        `).join('');
+
+        if (trendsResult.success) {
+          const trendData = trendsResult.data;
+          const labels = trendData.map(d => new Date(d.hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          const totalData = trendData.map(d => d.total);
+          const successData = trendData.map(d => d.successful);
+          const failedData = trendData.map(d => d.failed);
+
+          const trendCtx = document.getElementById('trendChart').getContext('2d');
+          if (trendChart) trendChart.destroy();
+          trendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: 'Total',
+                  data: totalData,
+                  borderColor: '#f97316',
+                  backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                  tension: 0.3,
+                  fill: true
+                },
+                {
+                  label: 'Successful',
+                  data: successData,
+                  borderColor: '#22c55e',
+                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                  tension: 0.3,
+                  fill: true
+                },
+                {
+                  label: 'Failed',
+                  data: failedData,
+                  borderColor: '#ef4444',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  tension: 0.3,
+                  fill: true
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  labels: { color: '#e5e7eb' }
+                }
+              },
+              scales: {
+                x: {
+                  ticks: { color: '#94a3b8' },
+                  grid: { color: 'rgba(148,163,184,0.1)' }
+                },
+                y: {
+                  ticks: { color: '#94a3b8' },
+                  grid: { color: 'rgba(148,163,184,0.1)' }
+                }
+              }
+            }
+          });
+
+          const statusCtx = document.getElementById('statusChart').getContext('2d');
+          if (statusChart) statusChart.destroy();
+          statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+              labels: ['Successful', 'Failed', 'Running'],
+              datasets: [{
+                data: [data.successfulExecutions, data.failedExecutions, data.runningExecutions],
+                backgroundColor: ['#22c55e', '#ef4444', '#3b82f6'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  labels: { color: '#e5e7eb' }
+                }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Overview Dashboard Error:', err);
+        grid.innerHTML = `<div class="card"><p style="color:#f87171;">Failed to load overview dashboard: ${err.message}</p></div>`;
+      }
+    }
+
+    async function loadWorkflowsDashboard() {
+      const tableBody = document.getElementById('workflowsBody');
+      tableBody.innerHTML = '<tr><td colspan="10">Loading...</td></tr>';
+
+      try {
+        const result = await apiFetch('/dashboard/performance');
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Unknown API error');
+        }
+
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const workflows = result.data.filter(wf => 
+          !searchTerm || (wf.name && wf.name.toLowerCase().includes(searchTerm))
+        );
+
+        tableBody.innerHTML = workflows.map(wf => `
+          <tr>
+            <td><strong>${wf.name || `Workflow ${wf.id}`}</strong></td>
+            <td>${wf.id}</td>
+            <td><span class="status-badge ${wf.active ? 'status-success' : 'status-error'}">${wf.active ? 'Active' : 'Inactive'}</span></td>
+            <td>${wf.total_executions}</td>
+            <td><span class="status-success">${wf.successRate}%</span></td>
+            <td><span class="${wf.failureRate > 10 ? 'status-error' : 'status-success'}">${wf.failureRate}%</span></td>
+            <td>${Math.round(wf.avg_duration)}ms</td>
+            <td>${wf.last_execution_at ? new Date(wf.last_execution_at).toLocaleString() : 'N/A'}</td>
+            <td><span class="status-badge status-${wf.last_status || 'unknown'}">${wf.last_status || 'N/A'}</span></td>
+            <td><span class="status-badge health-${wf.healthCategory.toLowerCase()}">${wf.healthScore}/100 - ${wf.healthCategory}</span></td>
+          </tr>
+        `).join('');
+        
+        if (workflows.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="10" style="color:#64748b;">No workflows found</td></tr>';
+        }
+      } catch (err) {
+        console.error('Workflows Dashboard Error:', err);
+        tableBody.innerHTML = `<tr><td colspan="10" style="color:#f87171;">Failed to load workflows: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadFailuresDashboard() {
+      const statsGrid = document.getElementById('failureStatsGrid');
+      const tableBody = document.getElementById('failuresBody');
+      
+      statsGrid.innerHTML = '<div class="card"><p>Loading...</p></div>';
+      tableBody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+
+      try {
+        const overviewResult = await apiFetch('/dashboard/overview');
+        
+        if (!overviewResult.success) throw new Error(overviewResult.error || 'Overview API failed');
+        
+        const overviewData = overviewResult.data;
+        
+        statsGrid.innerHTML = `
+          <div class="card">
+            <div class="kpi-label">Total Failed Executions</div>
+            <div class="kpi-value" style="background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); -webkit-background-clip: text;">${overviewData.failedExecutions}</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Failure Rate</div>
+            <div class="kpi-value" style="background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); -webkit-background-clip: text;">${overviewData.failureRate}%</div>
+          </div>
+          <div class="card">
+            <div class="kpi-label">Last 24h Failures</div>
+            <div class="kpi-value" style="background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%); -webkit-background-clip: text;">${overviewData.failedExecutions > 0 ? 'Check below' : '0'}</div>
+          </div>
+        `;
+        
+        let detailedFailuresResult = null;
+        try {
+          detailedFailuresResult = await apiFetch('/dashboard/failures/detailed');
+        } catch (detailedErr) {
+          console.warn('Detailed failures API failed, continuing without details:', detailedErr);
+        }
+
+        if (detailedFailuresResult && detailedFailuresResult.success && detailedFailuresResult.data.length > 0) {
+          tableBody.innerHTML = detailedFailuresResult.data.map(failure => `
+            <tr>
+              <td>${failure.id}</td>
+              <td>${failure.workflow_name || `Workflow ${failure.workflowId}`}</td>
+              <td><span class="status-badge status-error">${failure.failedNode}</span></td>
+              <td>${failure.errorType}</td>
+              <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${failure.errorMessage}">${failure.errorMessage}</td>
+              <td>${new Date(failure.startedAt).toLocaleString()}</td>
+              <td>${Math.round(failure.duration_ms || 0)}ms</td>
+            </tr>
+          `).join('');
+        } else {
+          tableBody.innerHTML = '<tr><td colspan="7" style="color:#64748b;">No failures found</td></tr>';
+        }
+      } catch (err) {
+        console.error('Failures Dashboard Error:', err);
+        statsGrid.innerHTML = `<div class="card"><p style="color:#f87171;">Failed to load failure stats: ${err.message}</p></div>`;
+        tableBody.innerHTML = `<tr><td colspan="7" style="color:#f87171;">Failed to load failures: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadInsightsDashboard() {
+      const container = document.getElementById('insightsContainer');
+      const healthGrid = document.getElementById('healthGrid');
+      
+      container.innerHTML = '<div class="card"><p>Loading insights...</p></div>';
+      healthGrid.innerHTML = '<div class="card"><p>Loading health stats...</p></div>';
+
+      try {
+        const [insightsResult, performanceResult] = await Promise.all([
+          apiFetch('/dashboard/insights'),
+          apiFetch('/dashboard/performance')
+        ]);
+        
+        if (insightsResult.success && insightsResult.data.length > 0) {
+          container.innerHTML = insightsResult.data.map(insight => `
+            <div class="insight-card ${insight.type}">
+              <span style="font-size:1.5rem;">${insight.type === 'error' ? '🚨' : '⚠️'}</span>
+              <p style="margin:0;">${insight.message}</p>
+            </div>
+          `).join('');
+        } else {
+          container.innerHTML = '<div class="card"><p style="color:#94a3b8;">No critical insights at this time. Great job!</p></div>';
+        }
+
+        if (performanceResult.success) {
+          const workflows = performanceResult.data;
+          const avgHealthScore = workflows.length > 0 
+            ? Math.round(workflows.reduce((sum, wf) => sum + wf.healthScore, 0) / workflows.length)
+            : 0;
+          
+          healthGrid.innerHTML = `
+            <div class="card">
+              <div class="kpi-label">Avg Workflow Health Score</div>
+              <div class="kpi-value">${avgHealthScore}/100</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">Excellent Health</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Excellent').length}</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">Healthy</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Healthy').length}</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">Warning</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Warning').length}</div>
+            </div>
+            <div class="card">
+              <div class="kpi-label">Critical</div>
+              <div class="kpi-value" style="background: linear-gradient(90deg, #ef4444 0%, #f87171 100%); -webkit-background-clip: text;">${workflows.filter(wf => wf.healthCategory === 'Critical').length}</div>
+            </div>
+          `;
+        }
+      } catch (err) {
+        console.error('Insights Dashboard Error:', err);
+        container.innerHTML = `<div class="card"><p style="color:#f87171;">Failed to load insights: ${err.message}</p></div>`;
+        healthGrid.innerHTML = `<div class="card"><p style="color:#f87171;">Failed to load health stats: ${err.message}</p></div>`;
+      }
+    }
+
+    function openGrafana() {
+      if (config.grafanaUrl) {
+        window.open(config.grafanaUrl, '_blank');
+      }
+    }
+
+    function openN8n() {
+      if (config.n8nUrl) {
+        window.open(config.n8nUrl, '_blank');
+      }
+    }
+
+    async function loadConfigAndUser() {
+      try {
+        const [configData, meData] = await Promise.all([
+          apiFetch('/config'),
+          apiFetch('/me')
+        ]);
+
+        config = configData;
+        currentUser = meData.user;
+        
+        if (!currentUser || !currentUser.id) {
+          throw new Error('User session invalid');
+        }
+
+        if (currentUser.role === 'admin') {
+          document.getElementById('adminNav').style.display = 'flex';
+        } else {
+          document.getElementById('adminNav').style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error loading config/user:', err);
+        localStorage.removeItem('tasky_token');
+        localStorage.removeItem('tasky_user');
+        window.location = 'login.html';
+        throw err;
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location = 'login.html';
+    }
+
+    function startPolling() {
+      if (dashboardPolling) {
+        clearInterval(dashboardPolling);
+      }
+      
+      dashboardPolling = setInterval(async () => {
+        const currentToken = localStorage.getItem('tasky_token');
+        if (!currentToken) {
+          clearInterval(dashboardPolling);
+          return;
+        }
+        
+        try {
+          await applyFilters();
+        } catch (err) {
+          console.error('Polling error:', err);
+        }
+      }, 30000);
+    }
+
+    window.onload = async () => {
+      const initialToken = localStorage.getItem('tasky_token');
+      if (!initialToken) {
+        window.location = 'login.html';
+        return;
+      }
+
+      try {
+        await loadConfigAndUser();
+        await applyFilters();
+        startPolling();
+      } catch (err) {
+        console.error('Dashboard initialization failed:', err);
+      }
+    };
+    
+    window.onbeforeunload = () => {
+      if (dashboardPolling) {
+        clearInterval(dashboardPolling);
+      }
+    };
+  </script>
+</body>
+</html>

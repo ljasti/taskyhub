@@ -1,4 +1,4 @@
-# TaskyHub Single Command Deployment Guide
+# TaskyHub Quickstart
 
 ## ⚡ Quick Start (3 Steps)
 
@@ -14,14 +14,10 @@ aws configure
 # Enter your AWS credentials
 ```
 
-### Step 3: Deploy Everything
+### Step 3: Provision + Hardening (recommended)
 ```bash
-# Linux/Mac
 chmod +x scripts/spinup.sh
 ./scripts/spinup.sh
-
-# Or specify custom config file
-./scripts/spinup.sh config-acme.env
 ```
 
 **PowerShell Alternative (Windows):**
@@ -29,28 +25,13 @@ chmod +x scripts/spinup.sh
 .\scripts\spinup.ps1
 ```
 
----
+## What this does now
+- Runs **Terraform** to provision the EC2 instance.
+- Runs **Ansible hardening + user management** to create `supertasky` / `tasky` and disable `ubuntu`.
+- Does **not** auto-deploy the application (run that manually after hardening).
 
-## 📋 What the Single Command Does
-
-The `spinup.ps1` script automates the entire deployment:
-
-1. **Reads your config.env** - Loads all your credentials and settings
-2. **Initializes Terraform** - Sets up AWS provider
-3. **Generates terraform.auto.tfvars** - Creates configuration from your settings
-4. **Plans infrastructure** - Shows what will be created
-5. **Applies Terraform** - Provisions EC2 instance + security groups
-6. **Gets instance IP** - Retrieves the public IP
-7. **Waits 60 seconds** - Allows instance to fully boot
-8. **Updates Ansible inventory** - Configures host details
-9. **Generates vars.yml** - Creates ansible variables
-10. **Runs Ansible playbook** - Installs and configures everything:
-    - Updates system packages
-    - Installs Docker, nginx, certbot
-    - Creates application directories
-    - Deploys n8n container
-    - Configures nginx with SSL
-    - Sets up dashboard UI
+## Next step (manual app deployment)
+See `docs/RUNBOOK.md` for the canonical procedure.
 
 ---
 
@@ -66,7 +47,7 @@ AWS_REGION=us-east-1
 
 # EC2 Configuration
 KEY_PAIR_NAME=your-key-pair-name
-INSTANCE_TYPE=t3.medium
+INSTANCE_TYPE=t2.micro
 
 # Customer & Domain
 CUSTOMER_NAME=tasky
@@ -75,8 +56,8 @@ DOMAIN_NAME=tasky.amroth.life
 # SSH Key Path (Linux/Mac: /home/user/.ssh/key.pem)
 SSH_KEY_PATH=/home/username/.ssh/your-key-pair.pem
 
-# Application Passwords
-N8N_PASSWORD=StrongN8nPassword123!
+# Automation Engine password (AE)
+N8N_PASSWORD=StrongPassword123!
 ADMIN_PASSWORD=AdminPass123!
 USER_PASSWORD=UserPass123!
 ```
@@ -165,15 +146,8 @@ Each customer gets their own infrastructure automatically!
 
 ---
 
-## 🚨 Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| `config.env not found` | Run `Copy-Item config.env.example config.env` first |
-| AWS credentials error | Run `aws configure` and verify credentials |
-| SSH key not found | Update `SSH_KEY_PATH` in config.env with full path |
-| DNS not resolving | Wait 10-15 minutes for DNS propagation |
-| n8n won't start | SSH into instance and check: `docker logs tasky_n8n` |
+## Canonical docs
+- `docs/RUNBOOK.md` is the single source of truth for operations.
 
 ---
 
@@ -190,7 +164,7 @@ AWS_REGION
 # EC2 Key Pair (must exist in your AWS account)
 KEY_PAIR_NAME
 
-# Instance size (t3.medium is good for starting)
+# Instance size (t2.micro/t3.micro are common free-tier options)
 INSTANCE_TYPE
 
 # Customer identifier (becomes part of domain and service names)

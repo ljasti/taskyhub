@@ -42,10 +42,12 @@ fi
 
 print_info "Loading configuration from $CONFIG_FILE..."
 
-# Source the config file
+# Source the config file (CRLF-safe for Windows-edited .env files)
 set -a
-source "$CONFIG_FILE"
+source <(tr -d '\r' < "$CONFIG_FILE")
 set +a
+
+SUPERTASKY_KEY_PATH="${SUPERTASKY_KEY_PATH:-$SSH_KEY_PATH}"
 
 # Validate required environment variables
 required_vars=(
@@ -53,6 +55,7 @@ required_vars=(
     'AWS_SECRET_ACCESS_KEY'
     'AWS_REGION'
     'KEY_PAIR_NAME'
+    'INSTANCE_TYPE'
     'CUSTOMER_NAME'
     'DOMAIN_NAME'
     'N8N_PASSWORD'
@@ -70,7 +73,7 @@ done
 
 echo ""
 print_info "========================================"
-print_info "TaskyHub Infrastructure Deployment Script"
+print_info "TaskyHub Infrastructure + Hardening Script"
 print_info "========================================"
 echo ""
 
@@ -78,7 +81,7 @@ print_warning "Configuration Details:"
 echo "  Customer: $CUSTOMER_NAME"
 echo "  Domain: $DOMAIN_NAME"
 echo "  AWS Region: $AWS_REGION"
-echo "  Instance Type: ${INSTANCE_TYPE:-t3.medium}"
+echo "  Instance Type: $INSTANCE_TYPE"
 
 echo ""
 read -p "Do you want to proceed with deployment? (yes/no): " confirmation
@@ -95,13 +98,19 @@ print_info "[1/5] Initializing Terraform..."
 terraform init
 
 print_info ""
+print_info "Clearing stale taint (if present)..."
+terraform untaint aws_instance.tasky_server >/dev/null 2>&1 || true
+
+print_info ""
 print_info "[2/5] Creating terraform.auto.tfvars with your configuration..."
 cat > terraform.auto.tfvars << EOF
 aws_region           = "$AWS_REGION"
+instance_type        = "$INSTANCE_TYPE"
 key_pair_name        = "$KEY_PAIR_NAME"
+ssh_private_key_path = "$SSH_KEY_PATH"
 customer_name        = "$CUSTOMER_NAME"
 domain_name          = "$DOMAIN_NAME"
-n8n_admin_password   = "$N8N_PASSWORD"
+ae_admin_password    = "$N8N_PASSWORD"
 admin_password       = "$ADMIN_PASSWORD"
 user_password        = "$USER_PASSWORD"
 EOF
@@ -116,8 +125,12 @@ print_info ""
 print_info "[4/5] Applying Terraform configuration..."
 terraform apply -auto-approve tfplan
 
-# Get the instance public IP
-instance_ip=$(terraform output -raw instance_public_ip)
+# Get the instance public IP (strip CR for WSL/Windows interop)
+instance_ip="$(terraform output -raw instance_public_ip | tr -d '\r')"
+if [ -z "$instance_ip" ]; then
+    print_error "Failed to read instance_public_ip from terraform output"
+    exit 1
+fi
 print_success "Instance provisioned with IP: $instance_ip"
 
 # Save instance IP for later use
@@ -131,62 +144,57 @@ print_info "[5/5] Waiting for instance to be ready (60 seconds)..."
 sleep 60
 
 print_info ""
-print_info "Updating Ansible configuration..."
+print_info "Generating hardening inventory..."
 
-# Update inventory.ini with the instance IP
-sed -i "s/<INSTANCE_PUBLIC_IP>/$instance_ip/g" inventory.ini
-print_success "Updated inventory.ini"
-
-# Update ansible.cfg SSH key path (escape backslashes for sed)
-ssh_key_escaped=$(echo "$SSH_KEY_PATH" | sed 's/[\/&]/\\&/g')
-sed -i "s|~/.ssh/your-key-pair.pem|$ssh_key_escaped|g" ansible.cfg
-print_success "Updated ansible.cfg"
-
-# Update vars.yml with customer configuration
-cat > vars.yml << EOF
----
-customer_name: $CUSTOMER_NAME
-domain_name: $DOMAIN_NAME
-
-n8n_admin_user: admin
-n8n_admin_password: $N8N_PASSWORD
-n8n_timezone: Asia/Kolkata
-
-admin_username: admin
-admin_password: $ADMIN_PASSWORD
-user_username: user
-user_password: $USER_PASSWORD
-
-app_base_path: "/opt/$CUSTOMER_NAME"
-n8n_path: "/opt/$CUSTOMER_NAME/n8n"
-ui_path: "/opt/$CUSTOMER_NAME/ui"
-data_path: "/opt/$CUSTOMER_NAME/data"
+cat > inventory/terraform_inventory.yml << EOF
+all:
+  children:
+    tasky_servers:
+      hosts:
+        tasky-$CUSTOMER_NAME:
+          ansible_host: $instance_ip
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: $SSH_KEY_PATH
+          ansible_become: yes
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          customer_name: $CUSTOMER_NAME
 EOF
-
-print_success "Generated vars.yml"
+print_success "Generated inventory/terraform_inventory.yml"
 
 print_info ""
-print_info "Running Ansible playbook to configure server..."
-ansible-playbook playbook.yml -i inventory.ini
+print_info "Running security hardening + user management..."
+ANSIBLE_HOST_KEY_CHECKING=False ANSIBLE_ROLES_PATH="$SCRIPT_DIR/../infra/ansible/roles" ansible-playbook -i inventory/terraform_inventory.yml playbooks/01-hardening.yml --limit "tasky-$CUSTOMER_NAME"
+
+print_info ""
+print_info "Switching inventory to supertasky for manual app deployment..."
+cat > inventory/terraform_inventory.yml << EOF
+all:
+  children:
+    tasky_servers:
+      hosts:
+        tasky-$CUSTOMER_NAME:
+          ansible_host: $instance_ip
+          ansible_user: supertasky
+          ansible_ssh_private_key_file: $SUPERTASKY_KEY_PATH
+          ansible_become: yes
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          customer_name: $CUSTOMER_NAME
+EOF
 
 echo ""
 print_success "========================================"
-print_success "Deployment Complete!"
+print_success "Infrastructure + Hardening Complete!"
 print_success "========================================"
 echo ""
 
 print_warning "Instance IP: $instance_ip"
-print_warning "Access Application: https://$DOMAIN_NAME"
+print_warning "Server hardened. Ubuntu login should now be disabled."
 echo ""
 
-print_warning "Credentials:"
-echo "  Admin: admin / $ADMIN_PASSWORD"
-echo "  User: user / $USER_PASSWORD"
-echo ""
-
-print_warning "n8n Access:"
-echo "  URL: https://$DOMAIN_NAME/n8n"
-echo "  User: admin / $N8N_PASSWORD"
+print_warning "Next (manual app deployment):"
+echo "  cd infra/ansible"
+echo "  ansible-playbook -i inventory/terraform_inventory.yml playbooks/02-deploy-taskyhub.yml --limit tasky-$CUSTOMER_NAME"
+echo "  # ensure ansible_user is switched to supertasky in inventory before this step"
 echo ""
 
 print_info "IMPORTANT: Update your Namecheap DNS to point to $instance_ip"

@@ -1,0 +1,18 @@
+---
+# Fallbacks in case group_vars are not loaded
+app_dir: "/opt/taskyhub"
+
+# Naming convention fallbacks - parameterized
+postgres_db_user: "th_db_{{ customer_name }}"
+ae_db_user: "th_ae_{{ customer_name }}"
+grafana_db_user: "th_grafana_{{ customer_name }}"
+
+postgres_db_name: "th_app_{{ customer_name }}"
+ae_db_name: "th_ae_{{ customer_name }}"
+grafana_db_name: "th_grafana_{{ customer_name }}"
+
+default_admin_username: "th-{{ customer_name }}-admin"
+default_user_username: "th-{{ customer_name }}-user"
+
+subscription_id: "sub-{{ customer_name }}-{{ subscription_tier | default('basic') }}"
+subscription_tier: "basic"

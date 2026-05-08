@@ -292,7 +292,6 @@ app.get('/api/dashboard/overview', authMiddleware, async (req, res) => {
           COUNT(DISTINCT id) FILTER (WHERE status = 'success') as successful,
           COUNT(DISTINCT id) FILTER (
             WHERE LOWER(COALESCE(status, '')) = ANY($1::text[])
-              OR data::text ILIKE '%"error"%'
           ) as failed,
           COUNT(DISTINCT id) FILTER (WHERE status = 'running') as running,
           AVG(COALESCE(EXTRACT(EPOCH FROM ("stoppedAt" - "startedAt")) * 1000, 0)) as avg_duration,
@@ -331,7 +330,6 @@ app.get('/api/dashboard/overview', authMiddleware, async (req, res) => {
       FROM workflow_entity w
       LEFT JOIN execution_entity e ON w.id = e."workflowId" AND (
         LOWER(COALESCE(e.status, '')) = ANY($1::text[])
-        OR e.data::text ILIKE '%"error"%'
       )
       GROUP BY w.id, w.name
       HAVING COUNT(DISTINCT e.id) > 0
@@ -539,13 +537,12 @@ app.get('/api/failures', authMiddleware, async (req, res) => {
           e.status,
           e."startedAt" as start_time,
           e."stoppedAt" as end_time,
-          e.data,
+          NULL::jsonb as data,
           COALESCE(EXTRACT(EPOCH FROM (e."stoppedAt" - e."startedAt")) * 1000, 0) as duration_ms
         FROM execution_entity e 
         JOIN workflow_entity w ON e."workflowId" = w.id 
         WHERE (
           LOWER(COALESCE(e.status, '')) = ANY($1::text[])
-          OR e.data::text ILIKE '%"error"%'
         )
       `;
       const params = [];
@@ -590,7 +587,6 @@ app.get('/api/failures', authMiddleware, async (req, res) => {
           COUNT(DISTINCT id) as total_executions,
           COUNT(DISTINCT id) FILTER (
             WHERE LOWER(COALESCE(status, '')) = ANY($1::text[])
-              OR data::text ILIKE '%"error"%'
           ) as failed_executions
         FROM execution_entity
         WHERE "startedAt" >= NOW() - INTERVAL '7 days'
@@ -620,7 +616,6 @@ app.get('/api/dashboard/trends', authMiddleware, async (req, res) => {
         COUNT(DISTINCT id) FILTER (WHERE status = 'success') as successful,
         COUNT(DISTINCT id) FILTER (
           WHERE LOWER(COALESCE(status, '')) = ANY($1::text[])
-            OR data::text ILIKE '%"error"%'
         ) as failed
       FROM execution_entity
       WHERE "startedAt" >= NOW() - INTERVAL '24 HOURS'
@@ -648,7 +643,6 @@ app.get('/api/dashboard/performance', authMiddleware, async (req, res) => {
         COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'success') as successful_executions,
         COUNT(DISTINCT e.id) FILTER (
           WHERE LOWER(COALESCE(e.status, '')) = ANY($1::text[])
-            OR e.data::text ILIKE '%"error"%'
         ) as failed_executions,
         COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'running') as running_executions,
         AVG(COALESCE(EXTRACT(EPOCH FROM (e."stoppedAt" - e."startedAt")) * 1000, 0)) as avg_duration,
@@ -692,13 +686,12 @@ app.get('/api/dashboard/failures/detailed', authMiddleware, async (req, res) => 
         e.status,
         e."startedAt",
         e."stoppedAt",
-        e.data,
+        NULL::jsonb as data,
         COALESCE(EXTRACT(EPOCH FROM (e."stoppedAt" - e."startedAt")) * 1000, 0) as duration_ms
       FROM execution_entity e 
       LEFT JOIN workflow_entity w ON e."workflowId" = w.id 
       WHERE (
         LOWER(COALESCE(e.status, '')) = ANY($1::text[])
-        OR e.data::text ILIKE '%"error"%'
       )
       ORDER BY e."startedAt" DESC
       LIMIT 50
@@ -740,7 +733,6 @@ app.get('/api/dashboard/insights', authMiddleware, async (req, res) => {
       FROM execution_entity 
       WHERE (
         LOWER(COALESCE(status, '')) = ANY($1::text[])
-        OR data::text ILIKE '%"error"%'
       )
     `, [FAILED_EXECUTION_STATUSES]);
     
@@ -769,7 +761,6 @@ app.get('/api/dashboard/insights', authMiddleware, async (req, res) => {
       JOIN execution_entity e ON w.id = e."workflowId"
       WHERE (
         LOWER(COALESCE(e.status, '')) = ANY($1::text[])
-        OR e.data::text ILIKE '%"error"%'
       )
       GROUP BY w.id, w.name
       ORDER BY failure_count DESC

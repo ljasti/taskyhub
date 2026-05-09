@@ -1,0 +1,39 @@
+-- templates/create_taskyhub_db.sql.j2
+-- TaskyHub role + database bootstrap (idempotent, parameterised).
+-- Intended to be executed as a superuser (e.g. postgres) against the postgres DB.
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ postgres_db_user }}') THEN
+    EXECUTE format(
+      'CREATE ROLE %I LOGIN PASSWORD %L',
+      '{{ postgres_db_user }}',
+      '{{ taskyhub_db_password }}'
+    );
+  ELSE
+    EXECUTE format(
+      'ALTER ROLE %I WITH LOGIN PASSWORD %L',
+      '{{ postgres_db_user }}',
+      '{{ taskyhub_db_password }}'
+    );
+  END IF;
+END
+$$;
+
+SELECT format(
+  'CREATE DATABASE %I OWNER %I',
+  '{{ postgres_db_name }}',
+  '{{ postgres_db_user }}'
+)
+WHERE NOT EXISTS (
+  SELECT 1 FROM pg_database WHERE datname = '{{ postgres_db_name }}'
+)
+\gexec
+
+\connect {{ postgres_db_name }}
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE SCHEMA IF NOT EXISTS public;
+
+ALTER SCHEMA public OWNER TO {{ postgres_db_user }};

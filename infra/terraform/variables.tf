@@ -31,9 +31,26 @@ variable "customer_name" {
   type        = string
 }
 
-variable "domain_name" {
-  description = "Full domain name (e.g., tasky.amroth.life)"
+variable "ui_domain" {
+  description = "UI domain name (e.g., taskyhub.xyz)"
   type        = string
+}
+
+variable "ui_port" {
+  description = "UI host port"
+  type        = number
+  default     = 8080
+}
+
+variable "api_domain" {
+  description = "API domain name (e.g., taskyhub.xyz)"
+  type        = string
+}
+
+variable "api_port" {
+  description = "API host port"
+  type        = number
+  default     = 4000
 }
 
 variable "ae_admin_user" {

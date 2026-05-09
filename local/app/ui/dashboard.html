@@ -22,7 +22,7 @@
     }
 
     header {
-      padding: 20px 36px;
+      padding: 14px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -48,14 +48,17 @@
     }
 
     .brand img {
-      height: 144px;
+      height: 72px;
       display: block;
     }
 
     nav {
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 12px;
+      flex-wrap: wrap;
+      row-gap: 10px;
+      justify-content: flex-end;
     }
 
     nav a, nav button {
@@ -97,6 +100,88 @@
     button:hover {
       transform: translateY(-1px);
       box-shadow: 0 8px 12px -2px rgba(249, 115, 22, 0.4);
+    }
+
+    header {
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    nav a, nav button {
+      background: none;
+      box-shadow: none;
+      padding: 6px 10px;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    nav button:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    #adminNav {
+      flex-wrap: wrap;
+      gap: 10px;
+      border-left: 1px solid rgba(148,163,184,0.2);
+      padding-left: 14px;
+      margin-left: 14px;
+    }
+
+    #adminNav button {
+      color: #ffffff;
+      box-shadow: none;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    #adminNav button:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    @media (max-width: 1100px) {
+      header {
+        padding: 12px 14px;
+      }
+
+      .brand img {
+        height: 56px;
+      }
+    }
+
+    @media (max-width: 1500px) {
+      #adminNav {
+        flex-basis: 100%;
+        border-left: 0;
+        padding-left: 0;
+        margin-left: 0;
+        justify-content: flex-start;
+      }
+    }
+
+    .header-right > button {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      box-shadow: none;
+    }
+
+    .header-right > button:hover {
+      transform: none;
+      box-shadow: none;
     }
 
     .container {
@@ -383,10 +468,13 @@
         <button class="active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
         <button data-tab="workflows" onclick="switchTab('workflows')">Workflows</button>
         <button data-tab="failures" onclick="switchTab('failures')">Failures</button>
+        <button data-tab="activityLog" onclick="switchTab('activityLog')">Activity Log</button>
         <button data-tab="insights" onclick="switchTab('insights')">Insights</button>
         <span id="adminNav" style="display:flex; gap:12px; border-left:1px solid rgba(148,163,184,0.2); padding-left:24px; margin-left:24px;">
           <button id="openGrafanaBtn" style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);" onclick="openGrafana()">Monitoring Dashboard</button>
           <button id="openN8nBtn" style="background:linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);" onclick="openN8n()">Workflow Console</button>
+          <button data-tab="automationLogs" style="background:linear-gradient(135deg, #f97316 0%, #ea580c 100%);" onclick="switchTab('automationLogs')">Automation Logs</button>
+          <button data-tab="adminActivityLogs" style="background:linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);" onclick="switchTab('adminActivityLogs')">Admin Activity Logs</button>
         </span>
       </nav>
       <button onclick="logout()">Logout</button>
@@ -513,11 +601,135 @@
         <div class="grid" id="healthGrid"></div>
       </div>
     </div>
+
+    <div id="activityLogSection" class="dashboard-section" style="display:none;">
+      <h2 class="section-title">Activity Log</h2>
+      <div class="card">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <label style="color:#94a3b8;">Severity</label>
+          <select id="activitySeverity" onchange="loadActivityLogDashboard(1)">
+            <option value="">All</option>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+          </select>
+          <label style="color:#94a3b8;">Type</label>
+          <select id="activitySourceType" onchange="loadActivityLogDashboard(1)">
+            <option value="">All</option>
+            <option value="system">System</option>
+            <option value="workflow">Workflow</option>
+            <option value="task">Task</option>
+            <option value="webhook">Webhook</option>
+            <option value="email">Email</option>
+          </select>
+          <label style="color:#94a3b8;">Search</label>
+          <input id="activitySearch" type="text" placeholder="Search..." oninput="debouncedLoadActivityLogs()" style="min-width:220px;">
+          <button onclick="loadActivityLogDashboard(1)">Refresh</button>
+        </div>
+        <div style="overflow:auto; margin-top:16px;">
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Time</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Severity</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">What Happened</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Related</th>
+              </tr>
+            </thead>
+            <tbody id="activityLogBody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; justify-content:flex-end; margin-top:12px; color:#94a3b8;">
+          <button onclick="activityPrevPage()">Prev</button>
+          <span id="activityPageInfo"></span>
+          <button onclick="activityNextPage()">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminActivityLogsSection" class="dashboard-section" style="display:none;">
+      <h2 class="section-title">Admin Activity Logs</h2>
+      <div class="card">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <label style="color:#94a3b8;">Severity</label>
+          <select id="adminActivitySeverity" onchange="loadAdminActivityLogsDashboard(1)">
+            <option value="">All</option>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+          </select>
+          <label style="color:#94a3b8;">Type</label>
+          <select id="adminActivitySourceType" onchange="loadAdminActivityLogsDashboard(1)">
+            <option value="">All</option>
+            <option value="system">System</option>
+            <option value="workflow">Workflow</option>
+            <option value="task">Task</option>
+            <option value="webhook">Webhook</option>
+            <option value="email">Email</option>
+          </select>
+          <label style="color:#94a3b8;">Action</label>
+          <input id="adminActivityAction" type="text" placeholder="e.g. WORKFLOW_RUN_FAILED" oninput="debouncedLoadAdminActivityLogs()" style="min-width:220px;">
+          <label style="color:#94a3b8;">Search</label>
+          <input id="adminActivitySearch" type="text" placeholder="Search..." oninput="debouncedLoadAdminActivityLogs()" style="min-width:220px;">
+          <button onclick="loadAdminActivityLogsDashboard(1)">Refresh</button>
+        </div>
+        <div style="overflow:auto; margin-top:16px;">
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Time</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Actor</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Type</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Action</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Severity</th>
+                <th style="text-align:left; padding:10px 8px; color:#94a3b8; font-weight:600;">Message (Internal)</th>
+              </tr>
+            </thead>
+            <tbody id="adminActivityLogBody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; justify-content:flex-end; margin-top:12px; color:#94a3b8;">
+          <button onclick="adminActivityPrevPage()">Prev</button>
+          <span id="adminActivityPageInfo"></span>
+          <button onclick="adminActivityNextPage()">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="automationLogsSection" class="dashboard-section" style="display:none;">
+      <h2 class="section-title">Automation Logs</h2>
+      <div class="card">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <button onclick="refreshAeLogs()">Refresh</button>
+          <label style="color:#94a3b8;">Lines</label>
+          <select id="aeLogLimit" onchange="refreshAeLogs()">
+            <option value="200">200</option>
+            <option value="500" selected>500</option>
+            <option value="1000">1000</option>
+            <option value="2000">2000</option>
+          </select>
+          <label style="color:#94a3b8;">Filter</label>
+          <input id="aeLogFilter" type="text" placeholder="Filter by text (workflow id/name...)" oninput="renderAeLogs()" style="min-width:280px;">
+        </div>
+        <pre id="aeLogsViewer" style="margin-top:16px; background:#0b1220; border:1px solid rgba(148,163,184,0.2); border-radius:12px; padding:16px; overflow:auto; max-height:520px; white-space:pre; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></pre>
+      </div>
+    </div>
   </div>
 
   <script src="config.js"></script>
   <script>
-    const API_URL = window.TASKYHUB_CONFIG?.API_URL || 'http://localhost:4000/api';
+    function normalizeApiBaseUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      if (raw === '/api') return `${window.location.origin}/api`;
+      if (raw.startsWith('/')) return `${window.location.origin}${raw}`;
+      return raw.replace(/\/+$/, '');
+    }
+
+    const API_BASE_URL =
+      normalizeApiBaseUrl(window.API_BASE_URL) ||
+      normalizeApiBaseUrl(window.TASKYHUB_CONFIG?.API_URL) ||
+      `${window.location.origin}/api`;
     let currentTab = 'overview';
     let config = {};
     let currentUser = null;
@@ -544,7 +756,7 @@
         return;
       }
       
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -579,8 +791,17 @@
         case 'failures':
           await loadFailuresDashboard();
           break;
+        case 'activityLog':
+          await loadActivityLogDashboard(1);
+          break;
+        case 'adminActivityLogs':
+          await loadAdminActivityLogsDashboard(1);
+          break;
         case 'insights':
           await loadInsightsDashboard();
+          break;
+        case 'automationLogs':
+          await loadAutomationLogsDashboard();
           break;
       }
     }
@@ -957,6 +1178,192 @@
         console.error('Insights Dashboard Error:', err);
         container.innerHTML = `<div class="card"><p style="color:#f87171;">Failed to load insights: ${err.message}</p></div>`;
         healthGrid.innerHTML = `<div class="card"><p style="color:#f87171;">Failed to load health stats: ${err.message}</p></div>`;
+      }
+    }
+
+    let aeLogs = [];
+    let activityPage = 1;
+    let activityPageSize = 25;
+    let activityTotal = 0;
+    let activityDebounceTimer = null;
+    let adminActivityPage = 1;
+    let adminActivityPageSize = 25;
+    let adminActivityTotal = 0;
+    let adminActivityDebounceTimer = null;
+
+    function debouncedLoadActivityLogs() {
+      if (activityDebounceTimer) clearTimeout(activityDebounceTimer);
+      activityDebounceTimer = setTimeout(() => loadActivityLogDashboard(1), 250);
+    }
+
+    function debouncedLoadAdminActivityLogs() {
+      if (adminActivityDebounceTimer) clearTimeout(adminActivityDebounceTimer);
+      adminActivityDebounceTimer = setTimeout(() => loadAdminActivityLogsDashboard(1), 250);
+    }
+
+    function formatActivityTime(value) {
+      try {
+        const d = new Date(value);
+        return d.toLocaleString();
+      } catch (_e) {
+        return String(value || '');
+      }
+    }
+
+    function severityBadge(severity) {
+      const s = String(severity || '').toLowerCase();
+      const color = s === 'error' ? '#ef4444' : s === 'warning' ? '#f59e0b' : '#22c55e';
+      return `<span style="display:inline-flex; align-items:center; gap:8px;"><span style="width:10px; height:10px; border-radius:999px; background:${color}; display:inline-block;"></span>${escapeHtml(severity)}</span>`;
+    }
+
+    async function loadActivityLogDashboard(page) {
+      activityPage = page || 1;
+      const tbody = document.getElementById('activityLogBody');
+      const pageInfo = document.getElementById('activityPageInfo');
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:12px 8px; color:#94a3b8;">Loading...</td></tr>';
+      pageInfo.textContent = '';
+
+      const severity = document.getElementById('activitySeverity')?.value || '';
+      const sourceType = document.getElementById('activitySourceType')?.value || '';
+      const search = document.getElementById('activitySearch')?.value || '';
+
+      const query = new URLSearchParams();
+      query.set('page', String(activityPage));
+      query.set('pageSize', String(activityPageSize));
+      if (severity) query.set('severity', severity);
+      if (sourceType) query.set('sourceType', sourceType);
+      if (search) query.set('search', search);
+
+      try {
+        const data = await apiFetch(`/activity-logs?${query.toString()}`);
+        activityTotal = Number(data.total || 0);
+        const logs = Array.isArray(data.logs) ? data.logs : [];
+
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="padding:12px 8px; color:#94a3b8;">No activity found.</td></tr>';
+        } else {
+          tbody.innerHTML = logs.map((log) => {
+            return `
+              <tr>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(formatActivityTime(log.createdAt))}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${severityBadge(log.severity)}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(log.messageUser || '')}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(log.sourceType || '')} ${log.sourceId ? `#${escapeHtml(log.sourceId)}` : ''}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const start = (activityPage - 1) * activityPageSize + 1;
+        const end = Math.min(activityPage * activityPageSize, activityTotal);
+        pageInfo.textContent = activityTotal > 0 ? `${start}-${end} of ${activityTotal}` : '0';
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="padding:12px 8px; color:#f87171;">Failed to load activity: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function activityPrevPage() {
+      if (activityPage <= 1) return;
+      loadActivityLogDashboard(activityPage - 1);
+    }
+
+    function activityNextPage() {
+      const maxPage = Math.max(1, Math.ceil(activityTotal / activityPageSize));
+      if (activityPage >= maxPage) return;
+      loadActivityLogDashboard(activityPage + 1);
+    }
+
+    async function loadAdminActivityLogsDashboard(page) {
+      adminActivityPage = page || 1;
+      const tbody = document.getElementById('adminActivityLogBody');
+      const pageInfo = document.getElementById('adminActivityPageInfo');
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:12px 8px; color:#94a3b8;">Loading...</td></tr>';
+      pageInfo.textContent = '';
+
+      const severity = document.getElementById('adminActivitySeverity')?.value || '';
+      const sourceType = document.getElementById('adminActivitySourceType')?.value || '';
+      const action = document.getElementById('adminActivityAction')?.value || '';
+      const search = document.getElementById('adminActivitySearch')?.value || '';
+
+      const query = new URLSearchParams();
+      query.set('page', String(adminActivityPage));
+      query.set('pageSize', String(adminActivityPageSize));
+      if (severity) query.set('severity', severity);
+      if (sourceType) query.set('sourceType', sourceType);
+      if (action) query.set('action', action);
+      if (search) query.set('search', search);
+
+      try {
+        const data = await apiFetch(`/admin/activity-logs?${query.toString()}`);
+        adminActivityTotal = Number(data.total || 0);
+        const logs = Array.isArray(data.logs) ? data.logs : [];
+
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="padding:12px 8px; color:#94a3b8;">No activity found.</td></tr>';
+        } else {
+          tbody.innerHTML = logs.map((log) => {
+            const actor = log.actor?.name || 'System';
+            return `
+              <tr>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(formatActivityTime(log.createdAt))}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(actor)}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(log.sourceType)}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(log.action)}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${severityBadge(log.severity)}</td>
+                <td style="padding:10px 8px; border-top:1px solid rgba(148,163,184,0.12); color:#e2e8f0;">${escapeHtml(log.messageInternal || '')}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const start = (adminActivityPage - 1) * adminActivityPageSize + 1;
+        const end = Math.min(adminActivityPage * adminActivityPageSize, adminActivityTotal);
+        pageInfo.textContent = adminActivityTotal > 0 ? `${start}-${end} of ${adminActivityTotal}` : '0';
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:12px 8px; color:#f87171;">Failed to load activity: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function adminActivityPrevPage() {
+      if (adminActivityPage <= 1) return;
+      loadAdminActivityLogsDashboard(adminActivityPage - 1);
+    }
+
+    function adminActivityNextPage() {
+      const maxPage = Math.max(1, Math.ceil(adminActivityTotal / adminActivityPageSize));
+      if (adminActivityPage >= maxPage) return;
+      loadAdminActivityLogsDashboard(adminActivityPage + 1);
+    }
+
+    function renderAeLogs() {
+      const viewer = document.getElementById('aeLogsViewer');
+      const filterValue = String(document.getElementById('aeLogFilter')?.value || '').trim().toLowerCase();
+      const visibleLines = filterValue
+        ? aeLogs.filter(line => String(line).toLowerCase().includes(filterValue))
+        : aeLogs;
+      viewer.textContent = visibleLines.join('\n');
+    }
+
+    async function refreshAeLogs() {
+      await loadAutomationLogsDashboard(true);
+    }
+
+    async function loadAutomationLogsDashboard(forceRefresh = false) {
+      const viewer = document.getElementById('aeLogsViewer');
+      const limit = document.getElementById('aeLogLimit')?.value || '500';
+
+      if (!forceRefresh && aeLogs.length > 0) {
+        renderAeLogs();
+        return;
+      }
+
+      viewer.textContent = 'Loading...';
+      try {
+        const data = await apiFetch(`/admin/ae/logs?limit=${encodeURIComponent(limit)}`);
+        aeLogs = Array.isArray(data.lines) ? data.lines : [];
+        renderAeLogs();
+      } catch (err) {
+        viewer.textContent = `Failed to load logs: ${err.message}`;
       }
     }
 

@@ -1,9 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const { randomUUID } = require('crypto');
+const fsp = require('fs/promises');
 const {
   FAILED_EXECUTION_STATUSES,
   normalizeFailureDetails,
@@ -13,29 +16,85 @@ const {
 } = require('./dashboard-utils');
 
 const app = express();
+
+// Security: Set security-related HTTP headers
+app.use(helmet());
+
+// Security: Rate limiting to prevent brute-force attacks
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests, please try again later.' }
+});
+app.use('/api/', limiter);
+
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'taskyhub-secret';
 const GRAFANA_URL = process.env.GRAFANA_URL || 'http://localhost:3000';
-const AE_URL = process.env.AE_URL || 'http://localhost:5678';
+const AE_INTERNAL_URL = process.env.AE_INTERNAL_URL || process.env.AE_URL || process.env.N8N_URL || 'http://localhost:5678';
+const AE_PUBLIC_URL = process.env.AE_PUBLIC_URL || AE_INTERNAL_URL;
 const GRAFANA_DASHBOARD_UID = 'taskyhub-overview';
+const TASKY_ADMIN_EMAIL = (process.env.TASKY_ADMIN_EMAIL || '').trim();
+const TASKY_ADMIN_PASSWORD = process.env.TASKY_ADMIN_PASSWORD || '';
+const TASKY_ADMIN_NAME = (process.env.TASKY_ADMIN_NAME || 'DevOps Engineer').trim();
+const TASKY_ADMIN_ROLE = (process.env.TASKY_ADMIN_ROLE || 'admin').trim();
+const TASKY_USER_EMAIL = (process.env.TASKY_USER_EMAIL || '').trim();
+const TASKY_USER_PASSWORD = process.env.TASKY_USER_PASSWORD || '';
+const TASKY_USER_NAME = (process.env.TASKY_USER_NAME || 'Developer').trim();
+const TASKY_USER_ROLE = (process.env.TASKY_USER_ROLE || 'user').trim();
+const TASKY_SUBSCRIPTION_ID = (process.env.TASKY_SUBSCRIPTION_ID || '').trim();
 
-app.use(cors());
+// Helper to sanitize AE_URL for proxying
+const getAeBaseUrl = () => {
+  let url = AE_PUBLIC_URL;
+  if (url.endsWith('/')) {
+    url = url.slice(0, -1);
+  }
+  return url;
+};
+
 app.use(express.json());
+
+// Middleware to log API requests (debugging)
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+const allowedOrigins = (process.env.API_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        callback(null, true);
+      } else {
+        console.warn(`CORS blocked for origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
+  })
+);
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'taskyhub_db',
-  user: process.env.DB_USER || 'taskyhub_user',
-  password: process.env.DB_PASSWORD || 'taskyhub_pwd',
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
 });
 
 const aePool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: process.env.AE_DB_NAME || 'ae_db',
-  user: process.env.AE_DB_USER || 'ae_user',
-  password: process.env.AE_DB_PASSWORD || 'ae_pwd',
+  database: process.env.AE_DB_NAME || process.env.N8N_DB_NAME,
+  user: process.env.AE_DB_USER || process.env.N8N_DB_USER,
+  password: process.env.AE_DB_PASSWORD || process.env.N8N_DB_PASSWORD,
 });
 
 function generateToken(user) {
@@ -58,6 +117,98 @@ function isAllowedDemoLogin(email, password) {
     (normalizedEmail === 'devops@taskyhub.local' && password === 'admin123') ||
     (normalizedEmail === 'developer@taskyhub.local' && password === 'test123')
   );
+}
+
+async function ensureBootstrapAdminUserOnce() {
+  if (!TASKY_ADMIN_EMAIL) {
+    return true;
+  }
+  if (!TASKY_ADMIN_PASSWORD) {
+    console.warn('Admin bootstrap skipped: TASKY_ADMIN_PASSWORD is not set');
+    return true;
+  }
+
+  try {
+    let subscriptionId = TASKY_SUBSCRIPTION_ID;
+
+    if (subscriptionId) {
+      const check = await pool.query('SELECT id FROM subscriptions WHERE id = $1 LIMIT 1', [subscriptionId]);
+      if (check.rows.length === 0) {
+        subscriptionId = '';
+      }
+    }
+
+    if (!subscriptionId) {
+      const fallback = await pool.query('SELECT id FROM subscriptions ORDER BY created_at ASC LIMIT 1');
+      subscriptionId = fallback.rows[0]?.id;
+    }
+
+    if (!subscriptionId) {
+      console.warn('Admin bootstrap skipped: no subscription found');
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(TASKY_ADMIN_PASSWORD, 10);
+
+    await pool.query(
+      `
+      INSERT INTO users (id, subscription_id, email, password, name, role)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (email)
+      DO UPDATE SET
+        subscription_id = EXCLUDED.subscription_id,
+        password = EXCLUDED.password,
+        name = EXCLUDED.name,
+        role = EXCLUDED.role
+      `,
+      [randomUUID(), subscriptionId, TASKY_ADMIN_EMAIL, passwordHash, TASKY_ADMIN_NAME, TASKY_ADMIN_ROLE]
+    );
+
+    console.log(`Admin bootstrap ensured user exists: ${TASKY_ADMIN_EMAIL}`);
+    return true;
+  } catch (err) {
+    console.error('Admin bootstrap failed:', err.message || err);
+    return false;
+  }
+}
+
+async function ensureBootstrapUserOnce(subscriptionId) {
+  if (!TASKY_USER_EMAIL) {
+    return true;
+  }
+  if (!TASKY_USER_PASSWORD) {
+    console.warn('User bootstrap skipped: TASKY_USER_PASSWORD is not set');
+    return true;
+  }
+
+  try {
+    if (!subscriptionId) {
+      console.warn('User bootstrap skipped: no subscription found');
+      return true;
+    }
+
+    const passwordHash = await bcrypt.hash(TASKY_USER_PASSWORD, 10);
+
+    await pool.query(
+      `
+      INSERT INTO users (id, subscription_id, email, password, name, role)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (email)
+      DO UPDATE SET
+        subscription_id = EXCLUDED.subscription_id,
+        password = EXCLUDED.password,
+        name = EXCLUDED.name,
+        role = EXCLUDED.role
+      `,
+      [randomUUID(), subscriptionId, TASKY_USER_EMAIL, passwordHash, TASKY_USER_NAME, TASKY_USER_ROLE]
+    );
+
+    console.log(`User bootstrap ensured user exists: ${TASKY_USER_EMAIL}`);
+    return true;
+  } catch (err) {
+    console.error('User bootstrap failed:', err.message || err);
+    return false;
+  }
 }
 
 function authMiddleware(req, res, next) {
@@ -84,12 +235,144 @@ function authMiddleware(req, res, next) {
   }
 }
 
-app.get('/api/health', async (req, res) => {
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Admin access required' });
+  }
+  next();
+}
+
+function redactSensitive(value) {
+  const raw = String(value ?? '');
+  if (!raw) return raw;
+  if (/^bearer\s+/i.test(raw)) return '****';
+  if (raw.length >= 32) return '****';
+  return raw;
+}
+
+function isSensitiveKey(key) {
+  return /pass(word)?|token|secret|api[_-]?key|authorization|cookie|jwt|bearer|refresh|private|credential/i.test(String(key || ''));
+}
+
+function deepRedact(value, depth = 0) {
+  if (depth > 6) return '****';
+  if (value === null || value === undefined) return value;
+  if (typeof value === 'string') return redactSensitive(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (Array.isArray(value)) return value.map((v) => deepRedact(v, depth + 1));
+  if (typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = isSensitiveKey(k) ? '****' : deepRedact(v, depth + 1);
+    }
+    return out;
+  }
+  return '****';
+}
+
+async function logActivity({
+  customerId,
+  userId = null,
+  sourceType = 'system',
+  sourceId = null,
+  action,
+  severity = 'info',
+  messageInternal,
+  messageUser,
+  metadata = {},
+}) {
+  const internalText = String(messageInternal ?? '').trim();
+  const userText = String(messageUser ?? '').trim();
+  const fallbackText = userText || internalText;
+  if (!customerId || !action || !fallbackText) return;
+
+  const cleanSeverity = ['info', 'warning', 'error'].includes(severity) ? severity : 'info';
+  const cleanAction = String(action).trim().toUpperCase().slice(0, 80);
+  const cleanSourceType = String(sourceType || 'system').trim().toLowerCase().slice(0, 32);
+  const cleanMessage = fallbackText.slice(0, 500);
+  const cleanInternal = internalText ? internalText.slice(0, 800) : null;
+  const cleanUser = userText ? userText.slice(0, 500) : null;
+  const cleanMetadata = deepRedact(metadata);
+
   try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok', service: 'taskyhub-api', db: 'connected' });
+    await pool.query(
+      `
+      INSERT INTO activity_logs (id, customer_id, user_id, source_type, source_id, action, severity, message, message_internal, message_user, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+      `,
+      [
+        randomUUID(),
+        String(customerId),
+        userId ? String(userId) : null,
+        cleanSourceType,
+        sourceId ? String(sourceId) : null,
+        cleanAction,
+        cleanSeverity,
+        cleanMessage,
+        cleanInternal,
+        cleanUser,
+        JSON.stringify(cleanMetadata ?? {}),
+      ]
+    );
   } catch (err) {
-    res.status(500).json({ status: 'error', service: 'taskyhub-api', db: 'disconnected' });
+    console.error('Activity log write failed:', err.message || err);
+  }
+}
+
+async function readTailLines(filePath, limit) {
+  const maxLines = Math.min(Math.max(Number(limit) || 500, 1), 2000);
+  const maxBytes = 1024 * 1024;
+
+  await fsp.access(filePath);
+
+  const stat = await fsp.stat(filePath);
+  const readSize = Math.min(stat.size, maxBytes);
+  const start = Math.max(stat.size - readSize, 0);
+
+  const handle = await fsp.open(filePath, 'r');
+  try {
+    const buffer = Buffer.alloc(readSize);
+    await handle.read(buffer, 0, readSize, start);
+    const text = buffer.toString('utf8');
+    const lines = text.split(/\r?\n/);
+    if (start > 0) {
+      lines.shift();
+    }
+    return lines.filter(Boolean).slice(-maxLines);
+  } finally {
+    await handle.close();
+  }
+}
+
+app.get('/api/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'taskyhub-api',
+    uptime: process.uptime(),
+    db: 'disconnected',
+    ae: 'disconnected'
+  };
+
+  try {
+    // Check Database connection
+    await pool.query('SELECT 1');
+    health.db = 'connected';
+
+    // Check Automation Engine (n8n) connection
+    try {
+      await aePool.query('SELECT 1');
+      health.ae = 'connected';
+    } catch (aeErr) {
+      console.error('Healthcheck AE Error:', aeErr.message);
+      health.status = 'degraded';
+    }
+
+    res.json(health);
+  } catch (err) {
+    console.error('Healthcheck DB Error:', err.message);
+    health.status = 'error';
+    res.status(503).json(health);
   }
 });
 
@@ -111,13 +394,26 @@ app.post('/api/login', async (req, res) => {
   }
 
   try {
+    const normalizedEmail = String(email).trim();
     const result = await pool.query(
       'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
-      [email]
+      [normalizedEmail]
     );
     const user = result.rows[0];
 
     if (!user) {
+      console.warn(`Login failed: user not found for email ${normalizedEmail}`);
+      await logActivity({
+        customerId: 'unknown',
+        userId: null,
+        sourceType: 'system',
+        sourceId: null,
+        action: 'LOGIN_FAILED',
+        severity: 'warning',
+        messageInternal: 'Login failed: user not found',
+        messageUser: 'Login failed. Please check your email and password.',
+        metadata: { email: normalizedEmail },
+      });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -126,10 +422,33 @@ app.post('/api/login', async (req, res) => {
     const demoLoginAllowed = isAllowedDemoLogin(email, password);
 
     if (!passwordMatch && !demoLoginAllowed) {
+      console.warn(`Login failed: invalid password for email ${normalizedEmail}`);
+      await logActivity({
+        customerId: user.subscription_id,
+        userId: user.id,
+        sourceType: 'system',
+        sourceId: null,
+        action: 'LOGIN_FAILED',
+        severity: 'warning',
+        messageInternal: 'Login failed: invalid password',
+        messageUser: 'Login failed. Please check your email and password.',
+        metadata: { email: normalizedEmail },
+      });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = generateToken(user);
+    await logActivity({
+      customerId: user.subscription_id,
+      userId: user.id,
+      sourceType: 'system',
+      sourceId: null,
+      action: 'LOGIN_SUCCESS',
+      severity: 'info',
+      messageInternal: 'Login successful',
+      messageUser: 'Signed in successfully.',
+      metadata: { email: normalizedEmail },
+    });
     return res.json({ 
       token, 
       user: { 
@@ -143,6 +462,311 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+setImmediate(() => {
+  let attemptsRemaining = 20;
+  const attempt = async () => {
+    const adminDone = await ensureBootstrapAdminUserOnce();
+    if (adminDone) {
+      let subscriptionId = TASKY_SUBSCRIPTION_ID;
+      if (subscriptionId) {
+        const check = await pool.query('SELECT id FROM subscriptions WHERE id = $1 LIMIT 1', [subscriptionId]);
+        if (check.rows.length === 0) {
+          subscriptionId = '';
+        }
+      }
+      if (!subscriptionId) {
+        const fallback = await pool.query('SELECT id FROM subscriptions ORDER BY created_at ASC LIMIT 1');
+        subscriptionId = fallback.rows[0]?.id;
+      }
+
+      const userDone = await ensureBootstrapUserOnce(subscriptionId);
+      if (userDone) return;
+    }
+    attemptsRemaining -= 1;
+    if (attemptsRemaining <= 0) return;
+    setTimeout(attempt, 3000);
+  };
+  attempt();
+});
+
+app.get('/api/admin/ae/logs', authMiddleware, requireAdmin, async (req, res) => {
+  const logFilePath = process.env.AE_LOG_FILE_PATH || '/var/log/ae/n8n.log';
+
+  try {
+    const lines = await readTailLines(logFilePath, req.query.limit);
+    res.json({ lines });
+  } catch (err) {
+    if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
+      return res.status(404).json({ error: 'AE log file not available' });
+    }
+    console.error('AE logs error:', err);
+    res.status(500).json({ error: 'Failed to read AE logs' });
+  }
+});
+
+function toPositiveInt(value, fallback, min, max) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+
+function parseDate(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+async function queryActivityLogs({
+  customerId,
+  viewerUserId,
+  restrictToViewer,
+  adminView,
+  page,
+  pageSize,
+  severity,
+  sourceType,
+  sourceId,
+  action,
+  dateFrom,
+  dateTo,
+  search,
+}) {
+  const filters = ['l.customer_id = $1'];
+  const params = [String(customerId)];
+
+  if (restrictToViewer && viewerUserId) {
+    params.push(String(viewerUserId));
+    filters.push(`(l.user_id IS NULL OR l.user_id = $${params.length})`);
+  }
+
+  if (severity) {
+    params.push(String(severity));
+    filters.push(`l.severity = $${params.length}`);
+  }
+  if (sourceType) {
+    params.push(String(sourceType));
+    filters.push(`l.source_type = $${params.length}`);
+  }
+  if (sourceId) {
+    params.push(String(sourceId));
+    filters.push(`l.source_id = $${params.length}`);
+  }
+  if (action) {
+    params.push(String(action).toUpperCase());
+    filters.push(`l.action = $${params.length}`);
+  }
+  if (dateFrom) {
+    params.push(dateFrom.toISOString());
+    filters.push(`l.created_at >= $${params.length}`);
+  }
+  if (dateTo) {
+    params.push(dateTo.toISOString());
+    filters.push(`l.created_at <= $${params.length}`);
+  }
+  if (search) {
+    params.push(`%${String(search)}%`);
+    if (adminView) {
+      filters.push(`COALESCE(l.message_internal, l.message_user, l.message, '') ILIKE $${params.length}`);
+    } else {
+      filters.push(`COALESCE(l.message_user, l.message, '') ILIKE $${params.length}`);
+    }
+  }
+
+  const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+  const countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM activity_logs l ${whereClause}`, params);
+  const total = Number(countResult.rows[0]?.total || 0);
+
+  const offset = (page - 1) * pageSize;
+  params.push(pageSize);
+  params.push(offset);
+
+  const rowsResult = await pool.query(
+    `
+    SELECT
+      l.id,
+      l.customer_id,
+      l.user_id,
+      l.source_type,
+      l.source_id,
+      l.action,
+      l.severity,
+      l.message,
+      l.message_internal,
+      l.message_user,
+      l.metadata,
+      l.created_at,
+      u.name AS actor_name,
+      u.email AS actor_email
+    FROM activity_logs l
+    LEFT JOIN users u ON u.id::text = l.user_id
+    ${whereClause}
+    ORDER BY l.created_at DESC
+    LIMIT $${params.length - 1} OFFSET $${params.length}
+    `,
+    params
+  );
+
+  return { total, rows: rowsResult.rows };
+}
+
+app.get('/api/activity-logs', authMiddleware, async (req, res) => {
+  try {
+    const page = toPositiveInt(req.query.page, 1, 1, 1000000);
+    const pageSize = toPositiveInt(req.query.pageSize, 25, 1, 100);
+    const dateFrom = parseDate(req.query.dateFrom);
+    const dateTo = parseDate(req.query.dateTo);
+
+    const { total, rows } = await queryActivityLogs({
+      customerId: req.user.subscriptionId,
+      viewerUserId: req.user.id,
+      restrictToViewer: true,
+      adminView: false,
+      page,
+      pageSize,
+      severity: req.query.severity ? String(req.query.severity) : null,
+      sourceType: req.query.sourceType ? String(req.query.sourceType) : null,
+      sourceId: req.query.sourceId ? String(req.query.sourceId) : null,
+      action: req.query.action ? String(req.query.action) : null,
+      dateFrom,
+      dateTo,
+      search: req.query.search ? String(req.query.search) : null,
+    });
+
+    const logs = rows.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      severity: row.severity,
+      sourceType: row.source_type,
+      sourceId: row.source_id,
+      action: row.action,
+      actor: row.user_id ? { name: String(row.user_id) === String(req.user.id) ? 'You' : 'User' } : { name: 'System' },
+      messageUser: row.message_user || row.message || '',
+    }));
+
+    res.json({ page, pageSize, total, logs });
+  } catch (err) {
+    console.error('Activity logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch activity logs' });
+  }
+});
+
+app.get('/api/admin/activity-logs', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const page = toPositiveInt(req.query.page, 1, 1, 1000000);
+    const pageSize = toPositiveInt(req.query.pageSize, 25, 1, 100);
+    const dateFrom = parseDate(req.query.dateFrom);
+    const dateTo = parseDate(req.query.dateTo);
+
+    const { total, rows } = await queryActivityLogs({
+      customerId: req.user.subscriptionId,
+      viewerUserId: req.user.id,
+      restrictToViewer: false,
+      adminView: true,
+      page,
+      pageSize,
+      severity: req.query.severity ? String(req.query.severity) : null,
+      sourceType: req.query.sourceType ? String(req.query.sourceType) : null,
+      sourceId: req.query.sourceId ? String(req.query.sourceId) : null,
+      action: req.query.action ? String(req.query.action) : null,
+      dateFrom,
+      dateTo,
+      search: req.query.search ? String(req.query.search) : null,
+    });
+
+    const logs = rows.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      severity: row.severity,
+      sourceType: row.source_type,
+      sourceId: row.source_id,
+      action: row.action,
+      actor: row.user_id ? { name: row.actor_name || 'User', email: row.actor_email || null } : { name: 'System', email: null },
+      messageInternal: row.message_internal || row.message || '',
+      messageUser: row.message_user || null,
+      metadata: deepRedact(row.metadata || {}),
+    }));
+
+    res.json({ page, pageSize, total, logs });
+  } catch (err) {
+    console.error('Admin activity logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch activity logs' });
+  }
+});
+
+app.get('/api/workflows/:workflowId/activity-logs', authMiddleware, async (req, res) => {
+  try {
+    const page = toPositiveInt(req.query.page, 1, 1, 1000000);
+    const pageSize = toPositiveInt(req.query.pageSize, 25, 1, 100);
+    const { total, rows } = await queryActivityLogs({
+      customerId: req.user.subscriptionId,
+      viewerUserId: req.user.id,
+      restrictToViewer: true,
+      adminView: false,
+      page,
+      pageSize,
+      severity: req.query.severity ? String(req.query.severity) : null,
+      sourceType: 'workflow',
+      sourceId: String(req.params.workflowId),
+      action: req.query.action ? String(req.query.action) : null,
+      dateFrom: parseDate(req.query.dateFrom),
+      dateTo: parseDate(req.query.dateTo),
+      search: req.query.search ? String(req.query.search) : null,
+    });
+    const logs = rows.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      severity: row.severity,
+      sourceType: row.source_type,
+      sourceId: row.source_id,
+      action: row.action,
+      actor: row.user_id ? { name: String(row.user_id) === String(req.user.id) ? 'You' : 'User' } : { name: 'System' },
+      messageUser: row.message_user || row.message || '',
+    }));
+    res.json({ page, pageSize, total, logs });
+  } catch (err) {
+    console.error('Workflow activity logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch workflow activity logs' });
+  }
+});
+
+app.get('/api/tasks/:taskId/activity-logs', authMiddleware, async (req, res) => {
+  try {
+    const page = toPositiveInt(req.query.page, 1, 1, 1000000);
+    const pageSize = toPositiveInt(req.query.pageSize, 25, 1, 100);
+    const { total, rows } = await queryActivityLogs({
+      customerId: req.user.subscriptionId,
+      viewerUserId: req.user.id,
+      restrictToViewer: true,
+      adminView: false,
+      page,
+      pageSize,
+      severity: req.query.severity ? String(req.query.severity) : null,
+      sourceType: 'task',
+      sourceId: String(req.params.taskId),
+      action: req.query.action ? String(req.query.action) : null,
+      dateFrom: parseDate(req.query.dateFrom),
+      dateTo: parseDate(req.query.dateTo),
+      search: req.query.search ? String(req.query.search) : null,
+    });
+    const logs = rows.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      severity: row.severity,
+      sourceType: row.source_type,
+      sourceId: row.source_id,
+      action: row.action,
+      actor: row.user_id ? { name: String(row.user_id) === String(req.user.id) ? 'You' : 'User' } : { name: 'System' },
+      messageUser: row.message_user || row.message || '',
+    }));
+    res.json({ page, pageSize, total, logs });
+  } catch (err) {
+    console.error('Task activity logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch task activity logs' });
   }
 });
 
@@ -250,6 +874,17 @@ app.post('/api/users', authMiddleware, async (req, res) => {
     );
 
     await client.query('COMMIT');
+    await logActivity({
+      customerId: subscription.id,
+      userId: requestingUser.id,
+      sourceType: 'system',
+      sourceId: newUserResult.rows[0]?.id,
+      action: 'USER_INVITED',
+      severity: 'info',
+      messageInternal: `User invited: ${String(email).trim()}`,
+      messageUser: 'A user was invited to your workspace.',
+      metadata: { invitedEmail: String(email).trim(), role: String(role).trim() },
+    });
     res.status(201).json({ user: newUserResult.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -514,9 +1149,11 @@ app.get('/api/grafana/dashboard', authMiddleware, async (req, res) => {
 
 app.get('/api/config', authMiddleware, async (req, res) => {
   try {
+    const aeBaseUrl = getAeBaseUrl();
     res.json({
       grafanaUrl: GRAFANA_URL,
-      aeUrl: AE_URL
+      aeUrl: aeBaseUrl,
+      n8nUrl: aeBaseUrl // Keep for backward compatibility
     });
   } catch (err) {
     console.error(err);
@@ -792,6 +1429,72 @@ app.get('/api/dashboard/insights', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+async function pollWorkflowFailures() {
+  if (!TASKY_SUBSCRIPTION_ID) return;
+
+  try {
+    const result = await aePool.query(
+      `
+      SELECT
+        e.id as execution_id,
+        e.status,
+        e.data,
+        e."workflowId" as workflow_id,
+        w.name as workflow_name,
+        e."startedAt" as started_at
+      FROM execution_entity e
+      JOIN workflow_entity w ON w.id = e."workflowId"
+      WHERE LOWER(COALESCE(e.status, '')) = ANY($1::text[])
+        AND e."startedAt" >= NOW() - INTERVAL '15 minutes'
+      ORDER BY e."startedAt" DESC
+      LIMIT 20
+      `,
+      [FAILED_EXECUTION_STATUSES]
+    );
+
+    for (const row of result.rows) {
+      const executionId = String(row.execution_id);
+      const exists = await pool.query(
+        `SELECT 1 FROM activity_logs WHERE customer_id = $1 AND action = 'WORKFLOW_RUN_FAILED' AND metadata->>'executionId' = $2 LIMIT 1`,
+        [String(TASKY_SUBSCRIPTION_ID), executionId]
+      );
+      if (exists.rows.length > 0) continue;
+
+      const details = normalizeFailureDetails({ status: row.status, data: row.data });
+      const shortReason = truncateErrorMessage(details.errorMessage || '');
+      const workflowName = String(row.workflow_name || 'Workflow').trim();
+      const internalMessage = shortReason ? `Workflow "${workflowName}" failed: ${shortReason}` : `Workflow "${workflowName}" failed`;
+      const userMessage = `Workflow "${workflowName}" failed. Check your workflow steps and connected accounts.`;
+
+      await logActivity({
+        customerId: TASKY_SUBSCRIPTION_ID,
+        userId: null,
+        sourceType: 'workflow',
+        sourceId: String(row.workflow_id),
+        action: 'WORKFLOW_RUN_FAILED',
+        severity: 'error',
+        messageInternal: internalMessage,
+        messageUser: userMessage,
+        metadata: {
+          executionId,
+          workflowId: String(row.workflow_id),
+          workflowName,
+          status: String(row.status || ''),
+          failedNode: details.failedNode,
+          errorType: details.errorType,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('Workflow failure poller error:', err.message || err);
+  }
+}
+
+setTimeout(() => {
+  pollWorkflowFailures();
+  setInterval(pollWorkflowFailures, 60000);
+}, 15000);
 
 app.listen(PORT, () => {
   console.log(`TaskyHub API listening on port ${PORT}`);

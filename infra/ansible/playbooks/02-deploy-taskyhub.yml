@@ -1,4 +1,16 @@
 ---
+# playbooks/02-deploy-taskyhub.yml
+# This playbook deploys the TaskyHub application stack including:
+# - Main Application API and UI
+# - PostgreSQL Database (parameterized per customer)
+# - Automation Engine (AE) based on n8n
+# - Grafana Dashboards
+#
+# Data Sources:
+# - ../vault/secrets.yml: Encrypted passwords and sensitive hashes
+# - ../vars.yml: Customer-specific variables (customer_name, domains, etc.)
+# - ../group_vars/tasky_servers.yml: Global project conventions
+
 - name: Deploy TaskyHub Application
   hosts: tasky_servers
   become: yes
@@ -13,6 +25,7 @@
     compose_file: "{{ app_dir }}/docker-compose.yml"
     # From your repo tree: local/app contains api, ui, grafana, init.sql, tasky.conf
     local_app_dir: "{{ playbook_dir }}/../../../local/app"
+    ae_logs_dir: "/opt/{{ customer_name }}/ae-logs"
 
   pre_tasks:
     - name: Set postgres container name
@@ -28,6 +41,7 @@
           - ae_db_password is defined
           - grafana_db_password is defined
           - jwt_secret is defined
+          - tasky_admin_password is defined
           - grafana_admin_user is defined
           - grafana_admin_password is defined
           - admin_password_hash is defined
@@ -53,7 +67,10 @@
             - Admin: {{ default_admin_username }}@taskyhub.local
             - User: {{ default_user_username }}@taskyhub.local
           Subscription: {{ subscription_id }}
-          Domain: {{ domain_name }}
+          UI URL: {{ ui_base_url | default('https://' + (ui_domain | default('UNDEFINED'))) }}
+          UI Host Port: {{ ui_host_port | default('UNDEFINED') }}
+          API URL (browser): {{ api_base_url | default('https://' + (ui_domain | default('UNDEFINED')) + '/api') }}
+          API Host Port (localhost): {{ api_host_port | default('UNDEFINED') }}
           ==========================================
 
   tasks:
@@ -62,6 +79,26 @@
         path: "{{ app_dir }}"
         state: directory
         mode: "0755"
+
+    - name: Ensure AE logs directory exists
+      file:
+        path: "{{ ae_logs_dir }}"
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: "0755"
+
+    - name: Ensure logrotate is installed
+      apt:
+        name: logrotate
+        state: present
+        update_cache: yes
+
+    - name: Configure logrotate for AE logs (7-day retention)
+      template:
+        src: "{{ playbook_dir }}/../templates/logrotate_n8n.conf.j2"
+        dest: "/etc/logrotate.d/n8n-{{ customer_name }}"
+        mode: "0644"
 
     - name: Copy API from local/app
       copy:
@@ -106,73 +143,62 @@
       changed_when: false
       until: postgres_health.stdout == "healthy"
 
-    # ---------- SIMPLE ROLE CREATION (idempotent) ----------
+    # ---------- DATABASE & ROLE INITIALIZATION (idempotent) ----------
 
-    - name: Ensure main app role exists
+    - name: Render TaskyHub DB + role bootstrap SQL for this customer
+      template:
+        src: "{{ playbook_dir }}/../templates/create_taskyhub_db.sql.j2"
+        dest: "/tmp/create_taskyhub_db_{{ postgres_db_name }}.sql"
+        mode: "0644"
+
+    - name: Create TaskyHub DB and role if missing
       shell: |
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
-          "SELECT 1 FROM pg_roles WHERE rolname='{{ postgres_db_user }}'" | grep -q 1 || \
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
-          "CREATE ROLE {{ postgres_db_user }} LOGIN PASSWORD '{{ taskyhub_db_password }}';"
+        docker exec -e PGPASSWORD='{{ postgres_password }}' -i {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+          < /tmp/create_taskyhub_db_{{ postgres_db_name }}.sql
       args:
         executable: /bin/bash
 
-    - name: Ensure AE (n8n) role exists
+    - name: Render TaskyHub schema/seed SQL for this customer
+      template:
+        src: "{{ playbook_dir }}/../templates/init_taskyhub_schema.sql.j2"
+        dest: "/tmp/init_taskyhub_schema_{{ postgres_db_name }}.sql"
+        mode: "0644"
+
+    - name: Run TaskyHub schema/seed SQL for this customer
       shell: |
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
-          "SELECT 1 FROM pg_roles WHERE rolname='{{ ae_db_user }}'" | grep -q 1 || \
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
-          "CREATE ROLE {{ ae_db_user }} LOGIN PASSWORD '{{ ae_db_password }}';"
+        docker exec -e PGPASSWORD='{{ taskyhub_db_password }}' -i {{ postgres_container }} \
+          psql -h 127.0.0.1 -U {{ postgres_db_user }} -d {{ postgres_db_name }} -v ON_ERROR_STOP=1 \
+          < /tmp/init_taskyhub_schema_{{ postgres_db_name }}.sql
       args:
         executable: /bin/bash
 
-    - name: Ensure Grafana role exists
+    - name: Ensure AE and Grafana databases and users are correct
       shell: |
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
-          "SELECT 1 FROM pg_roles WHERE rolname='{{ grafana_db_user }}'" | grep -q 1 || \
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
-          "CREATE ROLE {{ grafana_db_user }} LOGIN PASSWORD '{{ grafana_db_password }}';"
-      args:
-        executable: /bin/bash
+        docker exec -e PGPASSWORD='{{ postgres_password }}' -i {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ ae_db_user }}') THEN
+            CREATE ROLE {{ ae_db_user }} LOGIN PASSWORD '{{ ae_db_password }}';
+          ELSE
+            ALTER ROLE {{ ae_db_user }} WITH LOGIN PASSWORD '{{ ae_db_password }}';
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ grafana_db_user }}') THEN
+            CREATE ROLE {{ grafana_db_user }} LOGIN PASSWORD '{{ grafana_db_password }}';
+          ELSE
+            ALTER ROLE {{ grafana_db_user }} WITH LOGIN PASSWORD '{{ grafana_db_password }}';
+          END IF;
+        END
+        $$;
 
-    # ---------- SIMPLE DATABASE CREATION (idempotent) ----------
+        SELECT 'CREATE DATABASE {{ ae_db_name }} OWNER {{ ae_db_user }}'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ ae_db_name }}') \gexec
+        SELECT 'CREATE DATABASE {{ grafana_db_name }} OWNER {{ grafana_db_user }}'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ grafana_db_name }}') \gexec
 
-    - name: Ensure main app database exists
-      shell: |
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
-          "SELECT 1 FROM pg_database WHERE datname='{{ postgres_db_name }}'" | grep -q 1 || \
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
-          "CREATE DATABASE {{ postgres_db_name }} OWNER {{ postgres_db_user }};"
-      args:
-        executable: /bin/bash
-
-    - name: Ensure AE (n8n) database exists
-      shell: |
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
-          "SELECT 1 FROM pg_database WHERE datname='{{ ae_db_name }}'" | grep -q 1 || \
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
-          "CREATE DATABASE {{ ae_db_name }} OWNER {{ ae_db_user }};"
-      args:
-        executable: /bin/bash
-
-    - name: Ensure Grafana database exists
-      shell: |
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -tAc \
-          "SELECT 1 FROM pg_database WHERE datname='{{ grafana_db_name }}'" | grep -q 1 || \
-        docker exec -e PGPASSWORD='{{ postgres_password }}' {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
-          "CREATE DATABASE {{ grafana_db_name }} OWNER {{ grafana_db_user }};"
+        GRANT ALL PRIVILEGES ON DATABASE {{ ae_db_name }} TO {{ ae_db_user }};
+        GRANT ALL PRIVILEGES ON DATABASE {{ grafana_db_name }} TO {{ grafana_db_user }};
+        SQL
       args:
         executable: /bin/bash
 
@@ -215,39 +241,7 @@
         docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ grafana_db_name }} -v ON_ERROR_STOP=1 -c
         "GRANT ALL ON SCHEMA public TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ grafana_db_user }};"
 
-    # ---------- App tables & default users ----------
-
-    - name: Run init.sql to create tables and default users
-      shell: |
-        docker exec -e PGPASSWORD='{{ postgres_password }}' -i {{ postgres_container }} \
-          psql -h 127.0.0.1 -U postgres -d {{ postgres_db_name }} <<'SQL'
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY,
-          subscription_id TEXT NOT NULL,
-          email TEXT UNIQUE NOT NULL,
-          password TEXT NOT NULL,
-          name TEXT NOT NULL,
-          role TEXT NOT NULL DEFAULT 'user'
-        );
-
-        CREATE TABLE IF NOT EXISTS subscriptions (
-          id TEXT PRIMARY KEY,
-          tier TEXT NOT NULL,
-          seat_limit INTEGER NOT NULL DEFAULT 5,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        INSERT INTO subscriptions (id, tier, seat_limit)
-        VALUES ('{{ subscription_id }}', '{{ subscription_tier }}', 5)
-        ON CONFLICT (id) DO NOTHING;
-
-        INSERT INTO users (id, subscription_id, email, password, name, role) VALUES
-        ('1', '{{ subscription_id }}', '{{ default_admin_username }}@taskyhub.local', '{{ admin_password_hash }}', 'Admin User', 'admin'),
-        ('2', '{{ subscription_id }}', '{{ default_user_username }}@taskyhub.local', '{{ user_password_hash }}', 'Standard User', 'user')
-        ON CONFLICT (id) DO NOTHING;
-        SQL
-      args:
-        executable: /bin/bash
+    # ---------- App tables verification ----------
 
     - name: Ensure TaskyHub app tables exist
       command: >
@@ -263,7 +257,12 @@
     # ---------- Start services: API, AE (n8n), Grafana, UI ----------
 
     - name: Start API after DB is ready
-      command: docker compose -f "{{ compose_file }}" up -d api
+      command: docker compose -f "{{ compose_file }}" up -d --build api
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Start UI after API (rebuild to pick up latest UI changes)
+      command: docker compose -f "{{ compose_file }}" up -d --build ui
       args:
         chdir: "{{ app_dir }}"
 
@@ -277,36 +276,82 @@
       args:
         chdir: "{{ app_dir }}"
 
-    - name: Start UI after backend services
-      command: docker compose -f "{{ compose_file }}" up -d ui
+    - name: Ensure all containers are running and healthy
+      command: docker compose -f "{{ compose_file }}" up -d --wait
       args:
         chdir: "{{ app_dir }}"
 
-    # ---------- Nginx config ----------
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
 
-    - name: Template nginx config
-      template:
-        src: "{{ playbook_dir }}/../templates/ui/tasky.conf.j2"
-        dest: "{{ nginx_conf_path }}"
-      when: nginx_conf_path is defined
+    - name: Ensure Nginx is started and enabled
+      service:
+        name: nginx
+        state: started
+        enabled: yes
 
-    - name: Enable nginx site
+    - name: Remove default Nginx site
       file:
-        src: "{{ nginx_conf_path }}"
-        dest: "{{ nginx_enabled_path }}"
+        path: "{{ nginx_sites_enabled_dir }}/default"
+        state: absent
+
+    - name: Set primary Let's Encrypt domain (first item)
+      set_fact:
+        letsencrypt_primary_domain: "{{ letsencrypt_domains[0] }}"
+      when: letsencrypt_domains | length > 0
+
+    - name: Deploy HTTPS-enabled Nginx vhost for UI + API
+      template:
+        src: "{{ playbook_dir }}/../templates/nginx_vhost.conf.j2"
+        dest: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ui_domain }}"
+        cert_name: "{{ letsencrypt_primary_domain | default(ui_domain) }}"
+        backend_port: "{{ ui_host_port }}"
+        ssl_enabled: true
+
+    - name: Enable UI site
+      file:
+        src: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        dest: "{{ nginx_sites_enabled_dir }}/{{ ui_domain }}.conf"
         state: link
         force: yes
-      when: nginx_enabled_path is defined
+
+    - name: Deploy HTTPS-enabled Nginx vhost for AE
+      template:
+        src: "{{ playbook_dir }}/../templates/nginx_vhost.conf.j2"
+        dest: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ae_domain }}"
+        cert_name: "{{ letsencrypt_primary_domain | default(ui_domain) }}"
+        backend_port: "{{ ae_host_port }}"
+        api_host_port: ""
+        ssl_enabled: true
+
+    - name: Enable AE site
+      file:
+        src: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        dest: "{{ nginx_sites_enabled_dir }}/{{ ae_domain }}.conf"
+        state: link
+        force: yes
 
     - name: Test nginx config
       command: nginx -t
-      when: nginx_conf_path is defined
+      changed_when: false
 
-    - name: Restart nginx
+    - name: Reload nginx
       service:
         name: nginx
-        state: restarted
-      when: nginx_conf_path is defined
+        state: reloaded
 
   post_tasks:
     - name: Deployment complete
@@ -316,7 +361,7 @@
           ✅ TaskyHub Deployment Complete!
           ==========================================
           Customer: {{ customer_name }}
-          Access: https://{{ domain_name }}
+          Access: {{ ui_base_url | default('https://' + (ui_domain | default('UNDEFINED'))) }}
           
           Database Configuration:
             - Main DB: {{ postgres_db_name }} / {{ postgres_db_user }}

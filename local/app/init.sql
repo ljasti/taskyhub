@@ -70,6 +70,33 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL,
+  user_id TEXT,
+  source_type TEXT NOT NULL,
+  source_id TEXT,
+  action TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  message TEXT NOT NULL,
+  message_internal TEXT,
+  message_user TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS message_internal TEXT;
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS message_user TEXT;
+
+CREATE INDEX IF NOT EXISTS activity_logs_customer_created_at_idx
+ON activity_logs (customer_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS activity_logs_source_idx
+ON activity_logs (customer_id, source_type, source_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS activity_logs_severity_idx
+ON activity_logs (customer_id, severity, created_at DESC);
+
 INSERT INTO subscriptions (id, name, seat_limit, status) VALUES
 ('sub-tasky-001', 'TaskyHub Basic', 2, 'active')
 ON CONFLICT DO NOTHING;

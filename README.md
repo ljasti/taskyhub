@@ -68,7 +68,10 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 KEY_PAIR_NAME=your-ec2-key-pair
 CUSTOMER_NAME=tasky
-DOMAIN_NAME=tasky.amroth.life
+UI_DOMAIN=taskyhub.xyz
+UI_PORT=8080
+API_DOMAIN=taskyhub.xyz
+API_PORT=4000
 SSH_KEY_PATH=/home/username/.ssh/your-key.pem
 N8N_PASSWORD=YourN8nPassword123!
 ADMIN_PASSWORD=YourAdminPassword123!
@@ -124,16 +127,13 @@ After deployment completes with instance IP, update DNS:
 ### Step 6: Access Application
 
 Once DNS propagates:
-- **Dashboard:** `https://tasky.amroth.life`
-- **Analytics (TaskyHub):** `https://tasky.amroth.life/analytics`
-- **Admin Login:** `admin` / [ADMIN_PASSWORD]
-- **User Login:** `user` / [USER_PASSWORD]
-- **n8n Workflows:** `https://tasky.amroth.life/n8n`
-- **n8n Login:** `admin` / [N8N_PASSWORD]
+- **Dashboard:** `http://mummy.taskyhub.xyz`
+- **Analytics (TaskyHub):** `http://mummy.taskyhub.xyz/analytics`
+- **AE (n8n) Workflows:** `http://ae.mummy.taskyhub.xyz`
 
 ## 🚀 Adding New Customers
 
-To add a new customer (e.g., acme.amroth.life):
+# To add a new customer (e.g., acme.taskyhub.xyz):
 
 ```bash
 # Copy and rename config
@@ -141,7 +141,7 @@ cp .env config-acme.env
 
 # Edit with new customer details
 # CUSTOMER_NAME=acme
-# DOMAIN_NAME=acme.amroth.life
+# UI_DOMAIN=taskyhub.xyz
 # [update other values]
 
 # Deploy

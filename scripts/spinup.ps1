@@ -28,7 +28,10 @@ $requiredVars = @(
     'KEY_PAIR_NAME',
     'INSTANCE_TYPE',
     'CUSTOMER_NAME',
-    'DOMAIN_NAME',
+    'UI_DOMAIN',
+    'UI_PORT',
+    'API_DOMAIN',
+    'API_PORT',
     'N8N_PASSWORD',
     'ADMIN_PASSWORD',
     'USER_PASSWORD',
@@ -48,7 +51,8 @@ Write-Host "========================================`n" -ForegroundColor Cyan
 
 Write-Host "Configuration Details:" -ForegroundColor Yellow
 Write-Host "  Customer: $env:CUSTOMER_NAME"
-Write-Host "  Domain: $env:DOMAIN_NAME"
+Write-Host "  UI Domain: $env:UI_DOMAIN:$env:UI_PORT"
+Write-Host "  API Domain: $env:API_DOMAIN:$env:API_PORT"
 Write-Host "  AWS Region: $env:AWS_REGION"
 Write-Host "  Instance Type: $env:INSTANCE_TYPE"
 
@@ -78,7 +82,10 @@ instance_type        = "$env:INSTANCE_TYPE"
 key_pair_name        = "$env:KEY_PAIR_NAME"
 ssh_private_key_path = "$env:SSH_KEY_PATH"
 customer_name        = "$env:CUSTOMER_NAME"
-domain_name          = "$env:DOMAIN_NAME"
+ui_domain            = "$env:UI_DOMAIN"
+ui_port               = "$env:UI_PORT"
+api_domain           = "$env:API_DOMAIN"
+api_port             = "$env:API_PORT"
 ae_admin_password    = "$env:N8N_PASSWORD"
 admin_password       = "$env:ADMIN_PASSWORD"
 user_password        = "$env:USER_PASSWORD"

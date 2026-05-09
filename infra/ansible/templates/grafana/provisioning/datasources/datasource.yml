@@ -5,11 +5,11 @@ datasources:
     type: postgres
     access: proxy
     url: postgres:5432
-    user: n8n_user
+    user: "{{ ae_db_user }}"
     secureJsonData:
-      password: "n8n_pwd"
+      password: "{{ ae_db_password }}"
     jsonData:
-      database: n8n_db
+      database: "{{ ae_db_name }}"
       sslmode: disable
     isDefault: true
     editable: true

@@ -4,16 +4,16 @@ postgres_db_user: "th_db_{{ customer_name }}"
 ae_db_user: "th_ae_{{ customer_name }}"
 grafana_db_user: "th_grafana_{{ customer_name }}"
 
-postgres_db_name: "th_app_{{ customer_name }}"
+postgres_db_name: "th_db_{{ customer_name }}"
 ae_db_name: "th_ae_{{ customer_name }}"
 grafana_db_name: "th_grafana_{{ customer_name }}"
 
 # Application users
-default_admin_username: "th-{{ customer_name }}-admin"
-default_user_username: "th-{{ customer_name }}-user"
+default_admin_username: "admin"
+default_user_username: "user"
 
-# Subscription ID
-subscription_id: "sub-{{ customer_name }}-{{ subscription_tier | default('basic') }}"
+# Subscription ID must be a valid UUID
+subscription_id: "11111111-1111-1111-1111-111111111111"
 
 # Container naming
 container_prefix: "{{ customer_name }}"

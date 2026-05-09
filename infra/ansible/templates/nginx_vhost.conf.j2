@@ -1,0 +1,139 @@
+# templates/nginx_vhost.conf.j2
+# Nginx virtual host configuration for TaskyHub components.
+# This template is reused for both the UI and AE subdomain routing.
+#
+# Variables:
+# - server_name: The public domain name (e.g., mummy.taskyhub.xyz)
+# - cert_name: The Let's Encrypt certificate directory name under /etc/letsencrypt/live (defaults to server_name)
+# - backend_port: The host port where the Docker container is published (e.g., 8080)
+# - api_host_port: (optional) Host port for the API container (e.g., 4000). If set, routes /api/ to it.
+# - certbot_webroot: Webroot directory for ACME challenges (e.g., /var/www/letsencrypt)
+# - ssl_enabled: Whether to serve HTTPS (requires existing Let's Encrypt certs)
+
+{% if ssl_enabled %}
+# HTTP: Serve ACME challenges + redirect everything else to HTTPS
+server {
+    listen 80;
+    server_name {{ server_name }};
+
+    access_log /var/log/nginx/{{ server_name }}.access.log;
+    error_log /var/log/nginx/{{ server_name }}.error.log;
+
+    location /.well-known/acme-challenge/ {
+        root {{ certbot_webroot }};
+        default_type "text/plain";
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS: Reverse proxy to backend
+server {
+    listen 443 ssl http2;
+    server_name {{ server_name }};
+
+    access_log /var/log/nginx/{{ server_name }}.access.log;
+    error_log /var/log/nginx/{{ server_name }}.error.log;
+
+    ssl_certificate     /etc/letsencrypt/live/{{ cert_name | default(server_name) }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ cert_name | default(server_name) }}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    location /.well-known/acme-challenge/ {
+        root {{ certbot_webroot }};
+        default_type "text/plain";
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ backend_port }};
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+{% if api_host_port is defined and api_host_port %}
+    location /api/ {
+        proxy_pass http://127.0.0.1:{{ api_host_port }};
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+{% endif %}
+}
+{% else %}
+# HTTP-only (used before cert issuance). Includes ACME challenge location.
+server {
+    listen 80;
+    server_name {{ server_name }};
+
+    access_log /var/log/nginx/{{ server_name }}.access.log;
+    error_log /var/log/nginx/{{ server_name }}.error.log;
+
+    location /.well-known/acme-challenge/ {
+        root {{ certbot_webroot }};
+        default_type "text/plain";
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ backend_port }};
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+{% if api_host_port is defined and api_host_port %}
+    location /api/ {
+        proxy_pass http://127.0.0.1:{{ api_host_port }};
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+{% endif %}
+}
+{% endif %}

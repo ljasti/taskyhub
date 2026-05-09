@@ -62,39 +62,43 @@
     changed_when: false
     until: postgres_health.stdout == "healthy"
 
-  - name: Ensure databases, users, passwords, and grants are correct
+  - name: Render TaskyHub init SQL for this customer
+    template:
+      src: init_taskyhub.sql.j2
+      dest: /tmp/init_taskyhub_{{ postgres_db_name }}.sql
+      mode: "0644"
+
+  - name: Run TaskyHub init SQL for this customer
+    shell: |
+      docker exec -e PGPASSWORD='{{ postgres_password }}' -i {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 < /tmp/init_taskyhub_{{ postgres_db_name }}.sql
+    args:
+      executable: /bin/bash
+
+  - name: Ensure AE and Grafana databases and users are correct
     shell: |
       docker exec -e PGPASSWORD='{{ postgres_password }}' -i {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
       DO $$
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'taskyhub_user') THEN
-          CREATE ROLE taskyhub_user LOGIN PASSWORD '{{ taskyhub_db_password }}';
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ ae_db_user }}') THEN
+          CREATE ROLE {{ ae_db_user }} LOGIN PASSWORD '{{ ae_db_password }}';
         ELSE
-          ALTER ROLE taskyhub_user WITH LOGIN PASSWORD '{{ taskyhub_db_password }}';
+          ALTER ROLE {{ ae_db_user }} WITH LOGIN PASSWORD '{{ ae_db_password }}';
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ae_user') THEN
-          CREATE ROLE ae_user LOGIN PASSWORD '{{ ae_db_password }}';
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ grafana_db_user }}') THEN
+          CREATE ROLE {{ grafana_db_user }} LOGIN PASSWORD '{{ grafana_db_password }}';
         ELSE
-          ALTER ROLE ae_user WITH LOGIN PASSWORD '{{ ae_db_password }}';
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_user') THEN
-          CREATE ROLE grafana_user LOGIN PASSWORD '{{ grafana_db_password }}';
-        ELSE
-          ALTER ROLE grafana_user WITH LOGIN PASSWORD '{{ grafana_db_password }}';
+          ALTER ROLE {{ grafana_db_user }} WITH LOGIN PASSWORD '{{ grafana_db_password }}';
         END IF;
       END
       $$;
 
-      SELECT 'CREATE DATABASE taskyhub_db OWNER taskyhub_user'
-      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'taskyhub_db') \gexec
-      SELECT 'CREATE DATABASE ae_db OWNER ae_user'
-      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'ae_db') \gexec
-      SELECT 'CREATE DATABASE grafana_db OWNER grafana_user'
-      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'grafana_db') \gexec
+      SELECT 'CREATE DATABASE {{ ae_db_name }} OWNER {{ ae_db_user }}'
+      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ ae_db_name }}') \gexec
+      SELECT 'CREATE DATABASE {{ grafana_db_name }} OWNER {{ grafana_db_user }}'
+      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ grafana_db_name }}') \gexec
 
-      GRANT ALL PRIVILEGES ON DATABASE taskyhub_db TO taskyhub_user;
-      GRANT ALL PRIVILEGES ON DATABASE ae_db TO ae_user;
-      GRANT ALL PRIVILEGES ON DATABASE grafana_db TO grafana_user;
+      GRANT ALL PRIVILEGES ON DATABASE {{ ae_db_name }} TO {{ ae_db_user }};
+      GRANT ALL PRIVILEGES ON DATABASE {{ grafana_db_name }} TO {{ grafana_db_user }};
       SQL
     args:
       executable: /bin/bash
@@ -103,7 +107,7 @@
     command: >
       docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
       psql -h 127.0.0.1 -U postgres -d postgres -tAc
-      "SELECT COUNT(*) FROM pg_roles WHERE rolname IN ('taskyhub_user','ae_user','grafana_user');"
+      "SELECT COUNT(*) FROM pg_roles WHERE rolname IN ('{{ postgres_db_user }}','{{ ae_db_user }}','{{ grafana_db_user }}');"
     register: role_count
     retries: 30
     delay: 2
@@ -114,32 +118,32 @@
     command: >
       docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
       psql -h 127.0.0.1 -U postgres -d postgres -tAc
-      "SELECT COUNT(*) FROM pg_database WHERE datname IN ('taskyhub_db','ae_db','grafana_db');"
+      "SELECT COUNT(*) FROM pg_database WHERE datname IN ('{{ postgres_db_name }}','{{ ae_db_name }}','{{ grafana_db_name }}');"
     register: db_count
     retries: 30
     delay: 2
     changed_when: false
     until: (db_count.stdout | trim) == "3"
 
-  - name: Ensure schema grants in taskyhub_db
+  - name: Ensure schema grants in main app database
     command: >
-      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d taskyhub_db -v ON_ERROR_STOP=1 -c
-      "GRANT ALL ON SCHEMA public TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO taskyhub_user; GRANT USAGE ON SCHEMA public TO grafana_user; GRANT SELECT ON ALL TABLES IN SCHEMA public TO grafana_user; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO grafana_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO grafana_user;"
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ postgres_db_name }} -v ON_ERROR_STOP=1 -c
+      "GRANT ALL ON SCHEMA public TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ postgres_db_user }}; GRANT USAGE ON SCHEMA public TO {{ grafana_db_user }}; GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ grafana_db_user }}; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {{ grafana_db_user }};"
 
-  - name: Ensure schema grants in ae_db
+  - name: Ensure schema grants in AE database
     command: >
-      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d ae_db -v ON_ERROR_STOP=1 -c
-      "GRANT ALL ON SCHEMA public TO ae_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ae_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ae_user; GRANT USAGE ON SCHEMA public TO taskyhub_user; GRANT SELECT ON ALL TABLES IN SCHEMA public TO taskyhub_user; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO taskyhub_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO taskyhub_user;"
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ ae_db_name }} -v ON_ERROR_STOP=1 -c
+      "GRANT ALL ON SCHEMA public TO {{ ae_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ ae_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ ae_db_user }}; GRANT USAGE ON SCHEMA public TO {{ postgres_db_user }}; GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ postgres_db_user }}; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {{ postgres_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {{ postgres_db_user }};"
 
-  - name: Ensure schema grants in grafana_db
+  - name: Ensure schema grants in Grafana database
     command: >
-      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d grafana_db -v ON_ERROR_STOP=1 -c
-      "GRANT ALL ON SCHEMA public TO grafana_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO grafana_user; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO grafana_user;"
+      docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ grafana_db_name }} -v ON_ERROR_STOP=1 -c
+      "GRANT ALL ON SCHEMA public TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ grafana_db_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ grafana_db_user }};"
 
   - name: Ensure TaskyHub app tables exist from init.sql
     command: >
       docker exec -e PGPASSWORD={{ postgres_password }} {{ postgres_container }}
-      psql -h 127.0.0.1 -U postgres -d taskyhub_db -tAc
+      psql -h 127.0.0.1 -U postgres -d {{ postgres_db_name }} -tAc
       "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('users','subscriptions');"
     register: app_tables
     retries: 30
@@ -148,7 +152,7 @@
     until: (app_tables.stdout | trim) == "2"
 
   - name: Start API after DB is ready
-    command: docker compose -f "{{ compose_file }}" up -d api
+    command: docker compose -f "{{ compose_file }}" up -d --build api
     args:
       chdir: "{{ app_dir }}"
 
@@ -162,8 +166,8 @@
     args:
       chdir: "{{ app_dir }}"
 
-  - name: Start UI after backend services
-    command: docker compose -f "{{ compose_file }}" up -d ui
+  - name: Ensure all containers are running and healthy
+    command: docker compose -f "{{ compose_file }}" up -d --wait
     args:
       chdir: "{{ app_dir }}"
 

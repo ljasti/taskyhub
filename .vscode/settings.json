@@ -1,0 +1,6 @@
+{
+    "workbench.localHistory.enabled": true,
+    "workbench.localHistory.maxNumberEntries": 50,
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000
+}

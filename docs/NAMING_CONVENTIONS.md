@@ -15,7 +15,7 @@
 - **Grafana DB User:** `th_grafana_{customer}` - Example: `th_grafana_besty`
 
 ## Database Names
-- **Main DB:** `th_app_{customer}` - Example: `th_app_besty`
+- **Main DB:** `th_db_{customer}` - Example: `th_db_besty`
 - **AE DB:** `th_ae_{customer}` - Example: `th_ae_besty`
 - **Grafana DB:** `th_grafana_{customer}` - Example: `th_grafana_besty`
 

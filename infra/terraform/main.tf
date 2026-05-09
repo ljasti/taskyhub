@@ -54,15 +54,15 @@ resource "aws_security_group" "tasky_sg" {
   }
 
   ingress {
-    from_port   = 4000
-    to_port     = 4000
+    from_port   = var.api_port
+    to_port     = var.api_port
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    from_port   = 8080
-    to_port     = 8080
+    from_port   = var.ui_port
+    to_port     = var.ui_port
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -122,6 +122,10 @@ resource "aws_instance" "tasky_server" {
                 ansible_become: yes
                 ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
                 customer_name: ${self.tags["Customer"]}
+                ui_domain: ${var.ui_domain}
+                ui_port: ${var.ui_port}
+                api_domain: ${var.api_domain}
+                api_port: ${var.api_port}
       INVENTORY
       ANSIBLE_HOST_KEY_CHECKING=False \
       ANSIBLE_ROLES_PATH="${path.module}/../ansible/roles" \

@@ -1,3 +1,13 @@
+# templates/docker-compose.yml.j2
+# Docker Compose configuration for the TaskyHub stack.
+# Managed by Ansible and deployed to the /opt/taskyhub directory.
+#
+# Data Sources:
+# - customer_name: Used for container naming and network isolation.
+# - postgres_db_name/user: Application database credentials.
+# - ui_port/api_port: Host ports for port forwarding.
+# - api_base_url/ui_base_url: Domains and URLs for service-to-service communication.
+
 version: "3.9"
 
 services:
@@ -35,16 +45,33 @@ services:
       DB_POSTGRESDB_DATABASE: "{{ ae_db_name }}"
       DB_POSTGRESDB_USER: "{{ ae_db_user }}"
       DB_POSTGRESDB_PASSWORD: "{{ ae_db_password }}"
-      N8N_HOST: localhost
+      N8N_HOST: "{{ ae_domain }}"
       N8N_PORT: 5678
-      N8N_PROTOCOL: http
-      WEBHOOK_URL: "https://{{ domain_name }}/n8n"
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: "https://{{ ae_domain }}"
+      WEBHOOK_URL: "https://{{ ae_domain }}"
+      N8N_SECURE_COOKIE: "true"
+      N8N_LOG_LEVEL: info
+      N8N_LOG_OUTPUT: file
+      N8N_LOG_FILE_LOCATION: /home/node/logs/n8n.log
+      N8N_LOG_FILE_SIZE_MAX: 16
+      N8N_LOG_FILE_COUNT_MAX: 100
     volumes:
       - ae_data:/home/node/.n8n
+      - /opt/{{ customer_name }}/ae-logs:/home/node/logs
     networks:
       - taskyhub_net
     ports:
-      - "5678:5678"
+      - "127.0.0.1:{{ ae_host_port }}:5678"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"const net=require('net');const s=net.connect(5678,'127.0.0.1');s.on('connect',()=>process.exit(0));s.on('error',()=>process.exit(1));\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   grafana:
     image: grafana/grafana:latest
@@ -80,13 +107,18 @@ services:
       GF_DATABASE_SSL_MODE: disable
 
     ports:
-      - "3000:3000"
+      - "127.0.0.1:{{ grafana_port }}:3000"
     networks:
       - taskyhub_net
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -95,7 +127,7 @@ services:
     container_name: "{{ customer_name }}_api"
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "127.0.0.1:{{ api_host_port }}:4000"
     environment:
       JWT_SECRET: "{{ jwt_secret }}"
       DB_HOST: postgres
@@ -103,15 +135,36 @@ services:
       DB_NAME: "{{ postgres_db_name }}"
       DB_USER: "{{ postgres_db_user }}"
       DB_PASSWORD: "{{ taskyhub_db_password }}"
+      TASKY_ADMIN_EMAIL: "{{ tasky_admin_email | default('devops@taskyhub.local') }}"
+      TASKY_ADMIN_PASSWORD: "{{ tasky_admin_password }}"
+      TASKY_USER_EMAIL: "{{ tasky_user_email | default('developer@taskyhub.local') }}"
+      TASKY_USER_PASSWORD: "{{ tasky_user_password | default('') }}"
+      TASKY_SUBSCRIPTION_ID: "{{ subscription_id | default('') }}"
+      AE_DB_NAME: "{{ ae_db_name }}"
+      AE_DB_USER: "{{ ae_db_user }}"
+      AE_DB_PASSWORD: "{{ ae_db_password }}"
       GRAFANA_URL: http://grafana:3000
-      AE_URL: http://ae:5678
+      AE_INTERNAL_URL: http://ae:5678
+      AE_PUBLIC_URL: "{{ ae_public_url }}"
+      API_ALLOWED_ORIGINS: "{{ api_allowed_origins | join(',') }}"
+      AE_LOG_FILE_PATH: /var/log/ae/n8n.log
     volumes:
       - ./api/data:/usr/src/app/data
+      - /opt/{{ customer_name }}/ae-logs:/var/log/ae:ro
     networks:
       - taskyhub_net
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"const http=require('http');http.get('http://127.0.0.1:4000/api/health',res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1));\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ui:
     build:
@@ -120,13 +173,20 @@ services:
     container_name: "{{ customer_name }}_ui"
     restart: unless-stopped
     environment:
-      API_URL: "https://{{ domain_name }}/api"
+      API_URL: "/api"
+      GRAFANA_URL: "{{ grafana_base_url }}"
     ports:
-      - "8080:80"
+      - "127.0.0.1:{{ ui_host_port }}:80"
     networks:
       - taskyhub_net
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pg_data:

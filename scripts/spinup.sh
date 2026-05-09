@@ -57,7 +57,10 @@ required_vars=(
     'KEY_PAIR_NAME'
     'INSTANCE_TYPE'
     'CUSTOMER_NAME'
-    'DOMAIN_NAME'
+    'UI_DOMAIN'
+    'UI_PORT'
+    'API_DOMAIN'
+    'API_PORT'
     'N8N_PASSWORD'
     'ADMIN_PASSWORD'
     'USER_PASSWORD'
@@ -79,7 +82,8 @@ echo ""
 
 print_warning "Configuration Details:"
 echo "  Customer: $CUSTOMER_NAME"
-echo "  Domain: $DOMAIN_NAME"
+echo "  UI Domain: $UI_DOMAIN:$UI_PORT"
+echo "  API Domain: $API_DOMAIN:$API_PORT"
 echo "  AWS Region: $AWS_REGION"
 echo "  Instance Type: $INSTANCE_TYPE"
 
@@ -109,7 +113,10 @@ instance_type        = "$INSTANCE_TYPE"
 key_pair_name        = "$KEY_PAIR_NAME"
 ssh_private_key_path = "$SSH_KEY_PATH"
 customer_name        = "$CUSTOMER_NAME"
-domain_name          = "$DOMAIN_NAME"
+ui_domain            = "$UI_DOMAIN"
+ui_port               = "$UI_PORT"
+api_domain           = "$API_DOMAIN"
+api_port             = "$API_PORT"
 ae_admin_password    = "$N8N_PASSWORD"
 admin_password       = "$ADMIN_PASSWORD"
 user_password        = "$USER_PASSWORD"

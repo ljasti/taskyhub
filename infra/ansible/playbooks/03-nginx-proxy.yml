@@ -1,0 +1,166 @@
+---
+# playbooks/03-nginx-proxy.yml
+# This playbook configures Nginx on the host to act as a reverse proxy for:
+# - Customer UI: {{ customer_name }}.{{ base_domain }} -> localhost:{{ ui_port }}
+# - AE (n8n) UI: ae.{{ customer_name }}.{{ base_domain }} -> localhost:{{ ae_host_port }}
+#
+# Data Sources:
+# - ../vars.yml: Defines base_domain, customer_name, and ports.
+# - ../group_vars/tasky_servers.yml: Global server configuration.
+
+- name: Configure Nginx Reverse Proxy for TaskyHub
+  hosts: tasky_servers
+  become: yes
+
+  vars_files:
+    - ../vars.yml
+    - ../group_vars/tasky_servers.yml
+
+  tasks:
+    - name: Install Nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+    - name: Ensure Nginx is started and enabled
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Install Certbot and nginx plugin
+      ansible.builtin.apt:
+        name:
+          - certbot
+          - python3-certbot-nginx
+        state: present
+        update_cache: true
+
+    - name: Create webroot for ACME challenges
+      ansible.builtin.file:
+        path: "{{ certbot_webroot }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: "0755"
+
+    - name: Remove default Nginx site
+      ansible.builtin.file:
+        path: "{{ nginx_sites_enabled_dir }}/default"
+        state: absent
+      notify: Reload Nginx
+
+    - name: Deploy HTTP-only Nginx vhost for UI + API (pre-certificate)
+      ansible.builtin.template:
+        src: ../templates/nginx_vhost.conf.j2
+        dest: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ui_domain }}"
+        backend_port: "{{ ui_host_port }}"
+        ssl_enabled: false
+      notify: Reload Nginx
+
+    - name: Enable UI site
+      ansible.builtin.file:
+        src: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        dest: "{{ nginx_sites_enabled_dir }}/{{ ui_domain }}.conf"
+        state: link
+      notify: Reload Nginx
+
+    - name: Deploy HTTP-only Nginx vhost for AE (pre-certificate)
+      ansible.builtin.template:
+        src: ../templates/nginx_vhost.conf.j2
+        dest: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ae_domain }}"
+        backend_port: "{{ ae_host_port }}"
+        api_host_port: ""
+        ssl_enabled: false
+      notify: Reload Nginx
+
+    - name: Enable AE site
+      ansible.builtin.file:
+        src: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        dest: "{{ nginx_sites_enabled_dir }}/{{ ae_domain }}.conf"
+        state: link
+      notify: Reload Nginx
+
+    - name: Validate Nginx configuration (HTTP)
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Reload Nginx to enable ACME challenge paths
+      ansible.builtin.meta: flush_handlers
+
+    - name: Set primary Let's Encrypt domain (first item)
+      ansible.builtin.set_fact:
+        letsencrypt_primary_domain: "{{ letsencrypt_domains[0] }}"
+      when: letsencrypt_domains | length > 0
+
+    - name: Obtain Let's Encrypt certificates (webroot)
+      ansible.builtin.command: >
+        certbot certonly --webroot
+        -w {{ certbot_webroot }}
+        {% for d in letsencrypt_domains %}-d {{ d }} {% endfor %}
+        --email {{ letsencrypt_email }}
+        --agree-tos
+        --non-interactive
+        --keep-until-expiring
+      args:
+        creates: "/etc/letsencrypt/live/{{ letsencrypt_primary_domain }}/fullchain.pem"
+
+    - name: Deploy HTTPS-enabled Nginx vhost for UI + API
+      ansible.builtin.template:
+        src: ../templates/nginx_vhost.conf.j2
+        dest: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ui_domain }}"
+        cert_name: "{{ letsencrypt_primary_domain }}"
+        backend_port: "{{ ui_host_port }}"
+        ssl_enabled: "{{ ui_domain in letsencrypt_domains }}"
+      notify: Reload Nginx
+
+    - name: Deploy HTTPS-enabled Nginx vhost for AE (only if included)
+      ansible.builtin.template:
+        src: ../templates/nginx_vhost.conf.j2
+        dest: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ae_domain }}"
+        cert_name: "{{ letsencrypt_primary_domain }}"
+        backend_port: "{{ ae_host_port }}"
+        api_host_port: ""
+        ssl_enabled: "{{ ae_domain in letsencrypt_domains }}"
+      notify: Reload Nginx
+
+    - name: Validate Nginx configuration (HTTPS)
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Apply Nginx SSL changes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Ensure Certbot renewal cron
+      ansible.builtin.cron:
+        name: "Certbot automatic renewal"
+        job: "certbot renew --quiet --deploy-hook \"systemctl reload nginx\""
+        minute: "17"
+        hour: "3"
+
+  handlers:
+    - name: Reload Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded

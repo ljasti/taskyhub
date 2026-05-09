@@ -1,23 +1,65 @@
 ---
+# Default customer (can be overridden with -e)
 customer_name: "besty"
-domain_name: "besty.taskyhub.com"
+base_domain: "taskyhub.xyz"
 
-postgres_db_name: "th_db_besty"
-postgres_db_user: "th_db_besty"
+# Derived domains (per-customer)
+ui_domain: "{{ customer_name }}.{{ base_domain }}"
+ae_domain: "ae.{{ customer_name }}.{{ base_domain }}"
 
-ae_db_name: "th_ae_besty"
-ae_db_user: "th_ae_besty"
+# Backward-compatible aliases used by existing playbooks/templates
+ui_vhost_domain: "{{ ui_domain }}"
+ae_vhost_domain: "{{ ae_domain }}"
 
-grafana_db_name: "th_grafana_besty"
-grafana_db_user: "th_grafana_besty"
+# Host ports where Docker publishes containers on the EC2 host
+ui_host_port: 8080
+api_host_port: 4000
+ae_host_port: 5678
 
-subscription_id: "besty-subscription-id"
+# Nginx Configuration
+nginx_sites_available_dir: "/etc/nginx/sites-available"
+nginx_sites_enabled_dir: "/etc/nginx/sites-enabled"
+
+# Let's Encrypt / Certbot (SSL)
+letsencrypt_email: "admin@taskyhub.xyz"
+letsencrypt_domains:
+  - "{{ ui_domain }}"
+  - "{{ ae_domain }}"
+certbot_webroot: "/var/www/letsencrypt"
+
+api_domain: "{{ ui_domain }}"    # same hostname; routed via Nginx at /api
+api_port: 4000                  # container port remains 4000, but bind on localhost only in prod
+grafana_port: 3000
+
+ui_base_url: "https://{{ ui_domain }}"
+api_base_url: "https://{{ ui_domain }}/api"
+grafana_base_url: "http://127.0.0.1:{{ grafana_port }}"
+ae_public_url: "https://{{ ae_domain }}"
+
+# API CORS allowed origins (comma-separated in container env)
+api_allowed_origins:
+  - "https://{{ ui_domain }}"
+  - "https://{{ ae_domain }}"
+
+# Main app DB
+postgres_db_name: "th_db_{{ customer_name }}"
+postgres_db_user: "th_db_{{ customer_name }}"
+
+# AE (n8n) DB
+ae_db_name: "th_ae_{{ customer_name }}"
+ae_db_user: "th_ae_{{ customer_name }}"
+
+# Grafana DB
+grafana_db_name: "th_grafana_{{ customer_name }}"
+grafana_db_user: "th_grafana_{{ customer_name }}"
+
+# Subscription ID must be a valid UUID (e.g. 11111111-1111-1111-1111-111111111111)
+subscription_id: "11111111-1111-1111-1111-111111111111"
 subscription_tier: "pro"
 
 default_admin_username: "admin"
 default_user_username: "user"
 
-# DO NOT put:
-# app_base_path: "/opt/besty"
-# compose_file: "/opt/besty/docker-compose.yml"
-# app_dir: "/home/ubuntu/taskyhub"
+# Login bootstrap (set tasky_admin_password in vault/secrets.yml to match your local password)
+tasky_admin_email: "devops@taskyhub.local"
+tasky_user_email: "developer@taskyhub.local"

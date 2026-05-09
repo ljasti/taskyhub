@@ -1,0 +1,149 @@
+-- templates/init_taskyhub_schema.sql.j2
+-- TaskyHub schema + seed (idempotent, parameterised).
+-- Intended to be executed against {{ postgres_db_name }} as {{ postgres_db_user }}.
+
+CREATE SCHEMA IF NOT EXISTS public;
+
+GRANT USAGE ON SCHEMA public TO {{ postgres_db_user }};
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON ALL TABLES IN SCHEMA public
+TO {{ postgres_db_user }};
+
+GRANT ALL PRIVILEGES
+ON ALL SEQUENCES IN SCHEMA public
+TO {{ postgres_db_user }};
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {{ postgres_db_user }};
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT ALL PRIVILEGES ON SEQUENCES TO {{ postgres_db_user }};
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id             UUID PRIMARY KEY,
+    name           TEXT NOT NULL,
+    seat_limit     INTEGER NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id              UUID PRIMARY KEY,
+    subscription_id UUID NOT NULL REFERENCES subscriptions(id),
+    email           TEXT NOT NULL UNIQUE,
+    password        TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    role            TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id          TEXT PRIMARY KEY,
+    customer_id TEXT NOT NULL,
+    user_id     TEXT,
+    source_type TEXT NOT NULL,
+    source_id   TEXT,
+    action      TEXT NOT NULL,
+    severity    TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    message_internal TEXT,
+    message_user     TEXT,
+    metadata    JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS message_internal TEXT;
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS message_user TEXT;
+
+CREATE INDEX IF NOT EXISTS activity_logs_customer_created_at_idx
+ON activity_logs (customer_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS activity_logs_source_idx
+ON activity_logs (customer_id, source_type, source_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS activity_logs_severity_idx
+ON activity_logs (customer_id, severity, created_at DESC);
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'subscriptions' AND column_name = 'id' AND data_type = 'text'
+    ) THEN
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_subscription_id_fkey;
+        UPDATE subscriptions
+        SET id = '{{ subscription_id }}'
+        WHERE id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+        ALTER TABLE subscriptions ALTER COLUMN id TYPE UUID USING id::uuid;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'subscription_id' AND data_type = 'text'
+    ) THEN
+        UPDATE users
+        SET subscription_id = '{{ subscription_id }}'
+        WHERE subscription_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+        ALTER TABLE users ALTER COLUMN subscription_id TYPE UUID USING subscription_id::uuid;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_subscription_id_fkey') THEN
+            ALTER TABLE users
+            ADD CONSTRAINT users_subscription_id_fkey
+            FOREIGN KEY (subscription_id) REFERENCES subscriptions(id);
+        END IF;
+    END IF;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON ALL TABLES IN SCHEMA public
+TO {{ postgres_db_user }};
+
+GRANT ALL PRIVILEGES
+ON ALL SEQUENCES IN SCHEMA public
+TO {{ postgres_db_user }};
+
+DO $$
+BEGIN
+  INSERT INTO subscriptions (id, name, seat_limit)
+  VALUES (
+    '{{ subscription_id }}'::uuid,
+    '{{ customer_name | default("TaskyHub") | capitalize }} Subscription',
+    10
+  )
+  ON CONFLICT (id)
+  DO UPDATE SET
+    name = EXCLUDED.name,
+    seat_limit = EXCLUDED.seat_limit;
+
+  INSERT INTO users (id, subscription_id, email, password, name, role)
+  VALUES (
+    gen_random_uuid(),
+    '{{ subscription_id }}'::uuid,
+    'admin@taskyhub.local',
+    '{{ admin_password_hash }}',
+    'Default Admin',
+    'admin'
+  )
+  ON CONFLICT (email)
+  DO UPDATE SET
+    subscription_id = EXCLUDED.subscription_id,
+    password = EXCLUDED.password,
+    name = EXCLUDED.name,
+    role = EXCLUDED.role;
+
+  INSERT INTO users (id, subscription_id, email, password, name, role)
+  VALUES (
+    gen_random_uuid(),
+    '{{ subscription_id }}'::uuid,
+    'user@taskyhub.local',
+    '{{ user_password_hash }}',
+    'Default User',
+    'user'
+  )
+  ON CONFLICT (email)
+  DO UPDATE SET
+    subscription_id = EXCLUDED.subscription_id,
+    password = EXCLUDED.password,
+    name = EXCLUDED.name,
+    role = EXCLUDED.role;
+END
+$$;

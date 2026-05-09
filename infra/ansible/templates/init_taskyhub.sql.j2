@@ -1,5 +1,20 @@
+-- templates/init_taskyhub.sql.j2
 -- TaskyHub main application database initialization (multi-tenant, parameterised)
 -- Rendered by Ansible (Jinja2) and executed as a superuser (e.g. postgres).
+--
+-- Data Sources (from Ansible):
+-- - postgres_db_name: The target database for the customer
+-- - postgres_db_user: The application role to own the schema
+-- - taskyhub_db_password: Password for the app role
+-- - subscription_id: A valid UUID for the customer's subscription
+-- - customer_name: Human-readable name for the customer
+-- - admin_password_hash: Bcrypt hash for the default admin user
+-- - user_password_hash: Bcrypt hash for the default standard user
+--
+-- DESIGN NOTES:
+-- 1) subscription_id MUST be a valid UUID string (e.g. '11111111-1111-1111-1111-111111111111').
+-- 2) The script is fully idempotent and safe to re-run multiple times.
+-- 3) Schema and table ownership are set to the application user for security.
 
 -- 1) Create application role/user if it does not exist
 DO
@@ -78,7 +93,45 @@ CREATE TABLE IF NOT EXISTS users (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Re‑apply privileges after table creation to be safe
+-- 7.1) Migration: Convert TEXT columns to UUID if they exist from a previous version
+-- This handles the "operator does not exist: text = uuid" error during re-runs.
+DO $$
+BEGIN
+    -- Handle subscriptions.id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'subscriptions' AND column_name = 'id' AND data_type = 'text'
+    ) THEN
+        -- Drop foreign keys temporarily
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_subscription_id_fkey;
+        
+        -- Update invalid UUID strings to a temporary valid one or the new one
+        -- (This is safe because we're aligning the existing 'mummy' dummy data)
+        UPDATE subscriptions SET id = '{{ subscription_id }}' WHERE id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+        
+        -- Convert column type
+        ALTER TABLE subscriptions ALTER COLUMN id TYPE UUID USING id::uuid;
+    END IF;
+
+    -- Handle users.subscription_id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'subscription_id' AND data_type = 'text'
+    ) THEN
+        -- Update invalid UUID strings
+        UPDATE users SET subscription_id = '{{ subscription_id }}' WHERE subscription_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+        
+        -- Convert column type
+        ALTER TABLE users ALTER COLUMN subscription_id TYPE UUID USING subscription_id::uuid;
+        
+        -- Restore foreign key
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_subscription_id_fkey') THEN
+            ALTER TABLE users ADD CONSTRAINT users_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES subscriptions(id);
+        END IF;
+    END IF;
+END $$;
+
+-- Re‑apply privileges after table creation/migration to be safe
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON ALL TABLES IN SCHEMA public
 TO {{ postgres_db_user }};

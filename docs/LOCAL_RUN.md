@@ -14,7 +14,7 @@ This guide explains how to run TaskyHub locally for development and testing purp
 Navigate to the application directory and start all services:
 
 ```bash
-cd app
+cd local/app
 # ⚠️ Important: If you have old data, remove volumes first!
 docker compose down -v
 
@@ -53,7 +53,7 @@ The UI API host is configurable through the UI container environment variable `A
 ## Stopping the Services
 
 ```bash
-cd app
+cd local/app
 # Stop but keep volumes
 docker compose down
 
@@ -65,6 +65,6 @@ docker compose down -v
 
 - The docker-compose.yml is configured for POC/development with exposed ports
 - All services (UI, API, n8n, Grafana) are containerized for easy local development
-- In production, services would be behind a reverse proxy (nginx) as configured in `app/tasky.conf`
+- In production, services are behind a reverse proxy (nginx) as configured via Ansible under `infra/ansible/`
 - Database data persists in Docker volumes
 - Default passwords should be changed for production use

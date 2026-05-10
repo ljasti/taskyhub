@@ -160,22 +160,56 @@
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/login`, {
+        const response = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
         });
 
-        const payload = await response.json();
+        // Read raw text so we can handle non-JSON (HTML 404 pages, etc.)
+        const text = await response.text();
+
         if (!response.ok) {
-          return alert(payload.error || 'Login failed');
+          let message = 'Login failed';
+
+          // Try to parse JSON error, fall back to plain text/HTML
+          try {
+            const maybeJson = JSON.parse(text);
+            if (maybeJson && (maybeJson.error || maybeJson.message)) {
+              message = maybeJson.error || maybeJson.message;
+            }
+          } catch (e) {
+            console.error('Non-JSON error response from backend:', text);
+          }
+
+          alert(`${message} (HTTP ${response.status})`);
+          return;
+        }
+
+        // At this point we expect valid JSON
+        let payload;
+        try {
+          payload = JSON.parse(text);
+        } catch (e) {
+          console.error('Expected JSON but got:', text);
+          alert('Unexpected response from TaskyHub backend. Please try again later.');
+          return;
+        }
+
+        if (!payload || !payload.token) {
+          alert('Login succeeded but no token returned from backend.');
+          console.warn('Login response without token:', payload);
+          return;
         }
 
         localStorage.setItem('tasky_token', payload.token);
-        localStorage.setItem('tasky_user', JSON.stringify(payload.user));
+        if (payload.user) {
+          localStorage.setItem('tasky_user', JSON.stringify(payload.user));
+        }
+
         window.location = 'dashboard.html';
       } catch (error) {
-        console.error(error);
+        console.error('Network or fetch error:', error);
         alert('Unable to reach the TaskyHub backend.');
       }
     }

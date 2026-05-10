@@ -5,7 +5,6 @@ param(
     [string]$ConfigFile = ".env"
 )
 
-# Load configuration from config.env if it exists
 if (Test-Path $ConfigFile) {
     Write-Host "Loading configuration from $ConfigFile..." -ForegroundColor Green
     Get-Content $ConfigFile | ForEach-Object {
@@ -32,9 +31,6 @@ $requiredVars = @(
     'UI_PORT',
     'API_DOMAIN',
     'API_PORT',
-    'N8N_PASSWORD',
-    'ADMIN_PASSWORD',
-    'USER_PASSWORD',
     'SSH_KEY_PATH'
 )
 
@@ -62,8 +58,11 @@ if ($confirmation -ne 'yes') {
     exit 0
 }
 
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Resolve-Path (Join-Path $scriptDir "..")
+
 # Navigate to terraform directory
-Push-Location ../infra/terraform
+Push-Location (Join-Path $repoRoot "infra/terraform")
 
 Write-Host "`n[1/5] Initializing Terraform..." -ForegroundColor Cyan
 terraform init
@@ -86,9 +85,6 @@ ui_domain            = "$env:UI_DOMAIN"
 ui_port               = "$env:UI_PORT"
 api_domain           = "$env:API_DOMAIN"
 api_port             = "$env:API_PORT"
-ae_admin_password    = "$env:N8N_PASSWORD"
-admin_password       = "$env:ADMIN_PASSWORD"
-user_password        = "$env:USER_PASSWORD"
 "@
 Set-Content -Path "terraform.auto.tfvars" -Value $tfvars
 
@@ -112,57 +108,36 @@ Write-Host "`n[5/5] Waiting for instance to be ready (60 seconds)..." -Foregroun
 Start-Sleep -Seconds 60
 
 # Navigate to ansible directory
-Push-Location ../infra/ansible
+Push-Location (Join-Path $repoRoot "infra/ansible")
 
-Write-Host "`nUpdating Ansible configuration..." -ForegroundColor Cyan
-
-# Generate inventory.ini directly from Terraform output + SSH key path
+Write-Host "`nGenerating hardening inventory..." -ForegroundColor Cyan
+$inventoryPath = "inventory/terraform_inventory.yml"
 $inventory = @"
-[servers]
-tasky-server ansible_host=$instance_ip ansible_user=ubuntu ansible_ssh_private_key_file=$env:SSH_KEY_PATH ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+all:
+  children:
+    tasky_servers:
+      hosts:
+        tasky-$env:CUSTOMER_NAME:
+          ansible_host: $instance_ip
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: $env:SSH_KEY_PATH
+          ansible_become: yes
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          customer_name: $env:CUSTOMER_NAME
 "@
-Set-Content -Path "inventory.ini" -Value $inventory
+Set-Content -Path $inventoryPath -Value $inventory
 
-# Update vars.yml with customer configuration
-$varsyml = @"
----
-customer_name: $env:CUSTOMER_NAME
-domain_name: $env:DOMAIN_NAME
-
-email: admin@$env:DOMAIN_NAME
-
-postgres_password: postgres_pwd
-ae_db_password: ae_pwd
-grafana_db_password: grafana_pwd
-taskyhub_db_password: taskyhub_pwd
-
-grafana_admin_user: taskyhub_admin
-grafana_admin_password: T4skyhub@dm1n!
-
-jwt_secret: taskyhub-secret
-
-app_base_path: "/opt/$env:CUSTOMER_NAME"
-compose_file: "/opt/$env:CUSTOMER_NAME/docker-compose.yml"
-nginx_conf_path: "/etc/nginx/sites-available/$env:CUSTOMER_NAME.conf"
-nginx_enabled_path: "/etc/nginx/sites-enabled/$env:CUSTOMER_NAME.conf"
-"@
-Set-Content -Path "vars.yml" -Value $varsyml
-
-Write-Host "Running Ansible playbook to configure server..." -ForegroundColor Cyan
+Write-Host "`nRunning security hardening..." -ForegroundColor Cyan
 $env:ANSIBLE_HOST_KEY_CHECKING = "False"
-ansible-playbook playbook.yml -i inventory.ini
-
-Pop-Location
+ansible-playbook -i $inventoryPath playbooks/01-hardening.yml --limit "tasky-$env:CUSTOMER_NAME"
 
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "Deployment Complete!" -ForegroundColor Green
+Write-Host "Infrastructure + Hardening Complete!" -ForegroundColor Green
 Write-Host "========================================`n" -ForegroundColor Green
 Write-Host "Instance IP: $instance_ip" -ForegroundColor Yellow
-Write-Host "Access Application: https://$env:DOMAIN_NAME" -ForegroundColor Yellow
-Write-Host "`nCredentials:" -ForegroundColor Yellow
-Write-Host "  Admin: admin / $env:ADMIN_PASSWORD"
-Write-Host "  User: user / $env:USER_PASSWORD"
-Write-Host "`nAE Access:" -ForegroundColor Yellow
-Write-Host "  URL: https://$env:DOMAIN_NAME/ae"
-Write-Host "  User: admin / $env:N8N_PASSWORD"
-Write-Host "`nIMPORTANT: Update your Namecheap DNS to point to $instance_ip`n" -ForegroundColor Cyan
+Write-Host "`nNext (manual app deployment):" -ForegroundColor Yellow
+Write-Host "  cd infra/ansible"
+Write-Host "  ansible-playbook -i inventory/terraform_inventory.yml playbooks/02-deploy-taskyhub.yml --limit tasky-$env:CUSTOMER_NAME"
+Write-Host "`nIMPORTANT: Update your DNS to point to $instance_ip`n" -ForegroundColor Cyan
+
+Pop-Location

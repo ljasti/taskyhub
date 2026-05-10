@@ -4,17 +4,17 @@
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ postgres_db_user }}') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ tasky_db_main_user }}') THEN
     EXECUTE format(
       'CREATE ROLE %I LOGIN PASSWORD %L',
-      '{{ postgres_db_user }}',
-      '{{ taskyhub_db_password }}'
+      '{{ tasky_db_main_user }}',
+      '{{ tasky_db_main_password }}'
     );
   ELSE
     EXECUTE format(
       'ALTER ROLE %I WITH LOGIN PASSWORD %L',
-      '{{ postgres_db_user }}',
-      '{{ taskyhub_db_password }}'
+      '{{ tasky_db_main_user }}',
+      '{{ tasky_db_main_password }}'
     );
   END IF;
 END
@@ -22,18 +22,18 @@ $$;
 
 SELECT format(
   'CREATE DATABASE %I OWNER %I',
-  '{{ postgres_db_name }}',
-  '{{ postgres_db_user }}'
+  '{{ tasky_db_main_name }}',
+  '{{ tasky_db_main_user }}'
 )
 WHERE NOT EXISTS (
-  SELECT 1 FROM pg_database WHERE datname = '{{ postgres_db_name }}'
+  SELECT 1 FROM pg_database WHERE datname = '{{ tasky_db_main_name }}'
 )
 \gexec
 
-\connect {{ postgres_db_name }}
+\connect {{ tasky_db_main_name }}
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE SCHEMA IF NOT EXISTS public;
 
-ALTER SCHEMA public OWNER TO {{ postgres_db_user }};
+ALTER SCHEMA public OWNER TO {{ tasky_db_main_user }};

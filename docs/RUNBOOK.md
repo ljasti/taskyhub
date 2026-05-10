@@ -19,7 +19,7 @@ chmod +x scripts/spinup.sh
 cd infra/ansible
 
 # Deploy to a static inventory host
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/static_inventory.yml playbooks/02-deploy-taskyhub.yml --ask-vault-pass -e "customer_name=mummy"
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/static_inventory.yml playbook.yml --ask-vault-pass -e "customer_name=mummy"
 ```
 
 ## Manual App Deployment (after hardening)
@@ -28,11 +28,8 @@ After `spinup.sh` completes, the inventory switches to `supertasky`. Deploy manu
 ```bash
 cd infra/ansible
 
-# Deploy the TaskyHub application stack (Postgres, API, UI, AE, Grafana)
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/terraform_inventory.yml playbooks/02-deploy-taskyhub.yml --limit tasky-<customer> --ask-vault-pass -e "customer_name=<customer>"
-
-# Configure Nginx Reverse Proxy for subdomain routing
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/terraform_inventory.yml playbooks/03-nginx-proxy.yml --limit tasky-<customer> --ask-vault-pass -e "customer_name=<customer>"
+# Full deploy (hardening is separate; this runs app deploy + nginx/certbot)
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/terraform_inventory.yml playbook.yml --limit tasky-<customer> --ask-vault-pass -e "customer_name=<customer>"
 ```
 
 ### Safety Net & Version Control
@@ -102,25 +99,19 @@ You must create the following A records in your DNS provider (e.g., Route 53 or 
 
 ### How to Test
 1. **UI Access**:
-   Open `http://mummy.taskyhub.xyz` in your browser.
+   Open `https://mummy.taskyhub.xyz` in your browser.
 2. **AE Access**:
-   Open `http://ae.mummy.taskyhub.xyz` in your browser.
+   Open `https://ae.mummy.taskyhub.xyz` in your browser.
 3. **Verify with Curl**:
    ```bash
-   curl -I http://mummy.taskyhub.xyz
-   curl -I http://ae.mummy.taskyhub.xyz
+   curl -I https://mummy.taskyhub.xyz
+   curl -I https://ae.mummy.taskyhub.xyz
    ```
 
 ### API Verification
-   Check the browser's Network tab. API calls should go to `http://{{ api_domain }}:{{ api_port }}/api/...`.
-3. **Manual API Login Test**:
-   ```bash
-   curl -X POST http://{{ api_domain }}:{{ api_port }}/api/login \
-     -H "Content-Type: application/json" \
-     -d '{"email":"admin@taskyhub.local","password":"your-password"}'
-   ```
+   Check the browser's Network tab. API calls should go to `https://{{ ui_domain }}/api/...`.
 4. **CORS Verification**:
-   If you see CORS errors, ensure `API_ALLOWED_ORIGINS` in the API container environment includes `http://{{ ui_domain }}:{{ ui_port }}`.
+   If you see CORS errors, ensure `API_ALLOWED_ORIGINS` includes `https://{{ ui_domain }}` and `https://{{ ae_domain }}`.
 
 ### Troubleshooting "permission denied for table users"
 If you see this error in API logs:

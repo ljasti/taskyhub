@@ -6,86 +6,154 @@ DO
 $$
 BEGIN
    IF NOT EXISTS (
-       SELECT FROM pg_roles WHERE rolname = '{{ postgres_db_user }}'
+       SELECT FROM pg_roles WHERE rolname = '{{ tasky_db_main_user }}'
    ) THEN
       EXECUTE format(
           'CREATE ROLE %I LOGIN PASSWORD %L',
-          '{{ postgres_db_user }}',
-          '{{ taskyhub_db_password }}'
+          '{{ tasky_db_main_user }}',
+          '{{ tasky_db_main_password }}'
+      );
+   ELSE
+      EXECUTE format(
+          'ALTER ROLE %I WITH LOGIN PASSWORD %L',
+          '{{ tasky_db_main_user }}',
+          '{{ tasky_db_main_password }}'
       );
    END IF;
 END
 $$;
 
 -- 2) Create database if it does not exist (owned by the app user)
-DO
-$$
-BEGIN
-   IF NOT EXISTS (
-       SELECT FROM pg_database WHERE datname = '{{ postgres_db_name }}'
-   ) THEN
-      EXECUTE format(
-          'CREATE DATABASE %I OWNER %I',
-          '{{ postgres_db_name }}',
-          '{{ postgres_db_user }}'
-      );
-   END IF;
-END
-$$;
+SELECT format(
+  'CREATE DATABASE %I OWNER %I',
+  '{{ tasky_db_main_name }}',
+  '{{ tasky_db_main_user }}'
+)
+WHERE NOT EXISTS (
+  SELECT 1 FROM pg_database WHERE datname = '{{ tasky_db_main_name }}'
+)
+\gexec
 
 -- 3) Connect to the TaskyHub application database for this customer
-\connect {{ postgres_db_name }}
+\connect {{ tasky_db_main_name }}
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 4) Ensure public schema exists and is owned by the app user
 CREATE SCHEMA IF NOT EXISTS public;
 
-ALTER SCHEMA public OWNER TO {{ postgres_db_user }};
+ALTER SCHEMA public OWNER TO {{ tasky_db_main_user }};
 
-GRANT USAGE ON SCHEMA public TO {{ postgres_db_user }};
+GRANT USAGE ON SCHEMA public TO {{ tasky_db_main_user }};
 
 -- 5) Global privileges for all existing tables/sequences in public
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON ALL TABLES IN SCHEMA public
-TO {{ postgres_db_user }};
+TO {{ tasky_db_main_user }};
 
 GRANT ALL PRIVILEGES
 ON ALL SEQUENCES IN SCHEMA public
-TO {{ postgres_db_user }};
+TO {{ tasky_db_main_user }};
 
 -- 6) Default privileges so future objects are also accessible
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {{ postgres_db_user }};
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {{ tasky_db_main_user }};
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT ALL PRIVILEGES ON SEQUENCES TO {{ postgres_db_user }};
+GRANT ALL PRIVILEGES ON SEQUENCES TO {{ tasky_db_main_user }};
 
 -- 7) Core tables (idempotent-style)
+
+CREATE TABLE IF NOT EXISTS plans (
+    id UUID PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    monthly_price_cents INTEGER NOT NULL DEFAULT 0,
+    yearly_price_cents INTEGER,
+    max_users INTEGER NOT NULL DEFAULT 1,
+    max_workflows INTEGER NOT NULL DEFAULT 10,
+    max_tasks INTEGER NOT NULL DEFAULT 100,
+    included_runs_per_month INTEGER NOT NULL DEFAULT 0,
+    overage_price_per_1000_runs INTEGER,
+    description TEXT NOT NULL DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS subscriptions (
     id             UUID PRIMARY KEY,
     name           TEXT NOT NULL,
-    seat_limit     INTEGER NOT NULL,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    seat_limit     INTEGER NOT NULL DEFAULT 0,
+    primary_domain TEXT,
+    status         TEXT NOT NULL DEFAULT 'active',
+    plan_id        UUID,
+    current_period_start TIMESTAMPTZ,
+    current_period_end   TIMESTAMPTZ,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS primary_domain TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_id UUID;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_plan_id_fkey') THEN
+        ALTER TABLE subscriptions
+        ADD CONSTRAINT subscriptions_plan_id_fkey
+        FOREIGN KEY (plan_id) REFERENCES plans(id);
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS users (
     id              UUID PRIMARY KEY,
     subscription_id UUID NOT NULL REFERENCES subscriptions(id),
+    customer_id     UUID,
     email           TEXT NOT NULL UNIQUE,
     password        TEXT NOT NULL,
     name            TEXT NOT NULL,
-    role            TEXT NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    role            TEXT NOT NULL DEFAULT 'member',
+    is_active       BOOLEAN NOT NULL DEFAULT true,
+    is_owner        BOOLEAN NOT NULL DEFAULT false,
+    is_super_admin  BOOLEAN NOT NULL DEFAULT false,
+    last_login_at   TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS customer_id UUID;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_owner BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE users ALTER COLUMN role SET DEFAULT 'member';
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_customer_id_fkey') THEN
+        ALTER TABLE users
+        ADD CONSTRAINT users_customer_id_fkey
+        FOREIGN KEY (customer_id) REFERENCES subscriptions(id);
+    END IF;
+END $$;
+
+UPDATE users SET customer_id = subscription_id WHERE customer_id IS NULL;
+UPDATE users SET role = 'member' WHERE role IS NULL OR role = '' OR LOWER(role) IN ('user','developer');
 
 -- Re‑apply privileges after table creation to be safe
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON ALL TABLES IN SCHEMA public
-TO {{ postgres_db_user }};
+TO {{ tasky_db_main_user }};
 
 GRANT ALL PRIVILEGES
 ON ALL SEQUENCES IN SCHEMA public
-TO {{ postgres_db_user }};
+TO {{ tasky_db_main_user }};
 
 -- 8) Seed default subscription for this customer
 DO
@@ -93,14 +161,48 @@ $$
 DECLARE
     sub_id UUID := '{{ subscription_id }}'::uuid;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM subscriptions WHERE id = sub_id) THEN
-        INSERT INTO subscriptions (id, name, seat_limit)
-        VALUES (
-            sub_id,
-            '{{ customer_name | default("TaskyHub") | capitalize }} Subscription',
-            10
-        );
-    END IF;
+    INSERT INTO plans (
+        id, code, name, monthly_price_cents, yearly_price_cents,
+        max_users, max_workflows, max_tasks,
+        included_runs_per_month, overage_price_per_1000_runs,
+        description, is_active, updated_at
+    ) VALUES
+        ('00000000-0000-0000-0000-000000000001', 'FREE', 'Free', 0, NULL, 3, 25, 500, 1000, 200, 'For trying TaskyHub with a small team.', true, NOW()),
+        ('00000000-0000-0000-0000-000000000002', 'STARTER', 'Starter', 1900, 19000, 3, 10, 1000, 5000, 500, 'For individuals and very small teams getting started with TaskyHub.', true, NOW()),
+        ('00000000-0000-0000-0000-000000000003', 'TEAM', 'Team', 4900, 49000, 10, 25, 10000, 25000, 400, 'For small teams who need more workflows, tasks, and executions.', true, NOW()),
+        ('00000000-0000-0000-0000-000000000004', 'BUSINESS', 'Business', 9900, 99000, 25, 100, 100000, 100000, 300, 'For larger teams with heavy usage and higher limits.', true, NOW())
+    ON CONFLICT (code) DO UPDATE SET
+        name = EXCLUDED.name,
+        monthly_price_cents = EXCLUDED.monthly_price_cents,
+        yearly_price_cents = EXCLUDED.yearly_price_cents,
+        max_users = EXCLUDED.max_users,
+        max_workflows = EXCLUDED.max_workflows,
+        max_tasks = EXCLUDED.max_tasks,
+        included_runs_per_month = EXCLUDED.included_runs_per_month,
+        overage_price_per_1000_runs = EXCLUDED.overage_price_per_1000_runs,
+        description = EXCLUDED.description,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW();
+
+    INSERT INTO subscriptions (id, name, seat_limit, status, plan_id, current_period_start, current_period_end, updated_at)
+    VALUES (
+        sub_id,
+        '{{ customer_name | default("TaskyHub") | capitalize }} Subscription',
+        10,
+        'active',
+        '00000000-0000-0000-0000-000000000002'::uuid,
+        NOW(),
+        NOW() + INTERVAL '1 month',
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        seat_limit = EXCLUDED.seat_limit,
+        status = EXCLUDED.status,
+        plan_id = EXCLUDED.plan_id,
+        current_period_start = COALESCE(subscriptions.current_period_start, EXCLUDED.current_period_start),
+        current_period_end = COALESCE(subscriptions.current_period_end, EXCLUDED.current_period_end),
+        updated_at = NOW();
 END
 $$;
 
@@ -109,33 +211,52 @@ DO
 $$
 DECLARE
     sub_id      UUID := '{{ subscription_id }}'::uuid;
-    admin_email TEXT := 'admin@taskyhub.local';
-    user_email  TEXT := 'user@taskyhub.local';
+    admin_email TEXT := '{{ tasky_app_admin_email }}';
+    user_email  TEXT := '{{ tasky_app_user_email }}';
 BEGIN
-    -- Default admin
-    IF NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = lower(admin_email)) THEN
-        INSERT INTO users (id, subscription_id, email, password, name, role)
-        VALUES (
-            gen_random_uuid(),
-            sub_id,
-            admin_email,
-            '{{ admin_password_hash }}',
-            'Default Admin',
-            'admin'
-        );
-    END IF;
+    INSERT INTO users (id, subscription_id, customer_id, email, password, name, role, is_active, is_owner, updated_at)
+    VALUES (
+        gen_random_uuid(),
+        sub_id,
+        sub_id,
+        admin_email,
+        crypt('{{ tasky_app_admin_password }}', gen_salt('bf', 10)),
+        'DevOps Engineer',
+        'admin',
+        true,
+        true,
+        NOW()
+    )
+    ON CONFLICT (email)
+    DO UPDATE SET
+      subscription_id = EXCLUDED.subscription_id,
+      customer_id = EXCLUDED.customer_id,
+      password = EXCLUDED.password,
+      name = EXCLUDED.name,
+      role = EXCLUDED.role,
+      is_owner = EXCLUDED.is_owner,
+      updated_at = NOW();
 
-    -- Default normal user
-    IF NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = lower(user_email)) THEN
-        INSERT INTO users (id, subscription_id, email, password, name, role)
-        VALUES (
-            gen_random_uuid(),
-            sub_id,
-            user_email,
-            '{{ user_password_hash }}',
-            'Default User',
-            'user'
-        );
-    END IF;
+    INSERT INTO users (id, subscription_id, customer_id, email, password, name, role, is_active, is_owner, updated_at)
+    VALUES (
+        gen_random_uuid(),
+        sub_id,
+        sub_id,
+        user_email,
+        crypt('{{ tasky_app_user_password }}', gen_salt('bf', 10)),
+        'Developer',
+        'member',
+        true,
+        false,
+        NOW()
+    )
+    ON CONFLICT (email)
+    DO UPDATE SET
+      subscription_id = EXCLUDED.subscription_id,
+      customer_id = EXCLUDED.customer_id,
+      password = EXCLUDED.password,
+      name = EXCLUDED.name,
+      role = EXCLUDED.role,
+      updated_at = NOW();
 END
 $$;

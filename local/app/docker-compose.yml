@@ -36,6 +36,9 @@ services:
       N8N_HOST: localhost
       N8N_PORT: 5678
       N8N_PROTOCOL: http
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: taskyhub
+      N8N_BASIC_AUTH_PASSWORD: local_n8n_pwd
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
@@ -116,12 +119,17 @@ services:
       DB_PASSWORD: taskyhub_pwd
       TASKY_ADMIN_EMAIL: devops@taskyhub.local
       TASKY_ADMIN_PASSWORD: admin123
-      TASKY_SUBSCRIPTION_ID: sub-tasky-001
+      TASKY_SUBSCRIPTION_ID: 11111111-1111-1111-1111-111111111111
       GRAFANA_URL: http://localhost:3000
       # AE_INTERNAL_URL is for container-to-container communication (Docker network DNS).
       # AE_PUBLIC_URL is what the browser should use (localhost ports).
       AE_INTERNAL_URL: http://n8n:5678
       AE_PUBLIC_URL: http://localhost:5678
+      TASKY_PUBLIC_URL: http://localhost:8080
+      TASKY_N8N_PATH_PREFIX: ""
+      TASKY_N8N_BASIC_AUTH_USER: taskyhub
+      TASKY_N8N_BASIC_AUTH_PASSWORD: local_n8n_pwd
+      TASKY_INTEGRATIONS_ENCRYPTION_KEY_B64: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       # AE DB connection (used by dashboard endpoints querying execution/workflow tables)
       AE_DB_NAME: n8n_db
       AE_DB_USER: n8n_user

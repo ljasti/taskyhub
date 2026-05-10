@@ -1,3 +1,7 @@
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
+terraform.auto.tfvars
+.env
+infra/ansible/.vault_pass

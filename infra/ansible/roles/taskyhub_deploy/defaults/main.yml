@@ -3,13 +3,22 @@
 app_dir: "/opt/taskyhub"
 
 # Naming convention fallbacks - parameterized
-postgres_db_user: "th_db_{{ customer_name }}"
-ae_db_user: "th_ae_{{ customer_name }}"
-grafana_db_user: "th_grafana_{{ customer_name }}"
+tasky_db_main_user: "th_db_{{ customer_name }}"
+tasky_db_ae_user: "th_ae_{{ customer_name }}"
+tasky_db_grafana_user: "th_grafana_{{ customer_name }}"
 
-postgres_db_name: "th_db_{{ customer_name }}"
-ae_db_name: "th_ae_{{ customer_name }}"
-grafana_db_name: "th_grafana_{{ customer_name }}"
+tasky_db_main_name: "th_db_{{ customer_name }}"
+tasky_db_ae_name: "th_ae_{{ customer_name }}"
+tasky_db_grafana_name: "th_grafana_{{ customer_name }}"
+
+# Backward-compatible aliases (legacy variable names)
+postgres_db_user: "{{ tasky_db_main_user }}"
+ae_db_user: "{{ tasky_db_ae_user }}"
+grafana_db_user: "{{ tasky_db_grafana_user }}"
+
+postgres_db_name: "{{ tasky_db_main_name }}"
+ae_db_name: "{{ tasky_db_ae_name }}"
+grafana_db_name: "{{ tasky_db_grafana_name }}"
 
 default_admin_username: "admin"
 default_user_username: "user"

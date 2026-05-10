@@ -1,12 +1,8 @@
 aws_region           = "us-east-1"
 instance_type        = "t3.micro"
 ami_id               = "ami-024ebedf48d280810"
-key_pair_name        = "ae"  # REPLACE WITH YOUR KEY PAIR NAME
-customer_name        = "besty"           # REPLACE WITH CUSTOMER NAME
-domain_name          = "besty.amroth.life"  # REPLACE WITH YOUR DOMAIN
-ae_admin_user        = "admin"
-ae_admin_password    = "StrongPassword123!"  # CHANGE THIS
-admin_username       = "admin"
-admin_password       = "admin123"        # CHANGE THIS
-user_username        = "user"
-user_password        = "user123"         # CHANGE THIS
+key_pair_name        = "ae"
+ssh_private_key_path = "/path/to/your-key.pem"
+customer_name        = "besty"
+ui_domain            = "besty.taskyhub.xyz"
+api_domain           = "besty.taskyhub.xyz"

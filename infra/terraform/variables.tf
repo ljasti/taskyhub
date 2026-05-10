@@ -52,39 +52,3 @@ variable "api_port" {
   type        = number
   default     = 4000
 }
-
-variable "ae_admin_user" {
-  description = "automation engine admin username"
-  type        = string
-  default     = "admin"
-}
-
-variable "ae_admin_password" {
-  description = "automation engine admin password"
-  type        = string
-  sensitive   = true
-}
-
-variable "admin_username" {
-  description = "Dashboard admin username"
-  type        = string
-  default     = "admin"
-}
-
-variable "admin_password" {
-  description = "Dashboard admin password"
-  type        = string
-  sensitive   = true
-}
-
-variable "user_username" {
-  description = "Dashboard user username"
-  type        = string
-  default     = "user"
-}
-
-variable "user_password" {
-  description = "Dashboard user password"
-  type        = string
-  sensitive   = true
-}

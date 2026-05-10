@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "{{ postgres_password }}"
+      POSTGRES_PASSWORD: "{{ tasky_db_super_password | default(postgres_password | default('')) }}"
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     volumes:
       - pg_data:/var/lib/postgresql/data
@@ -44,12 +44,24 @@ services:
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: "{{ ae_db_name }}"
       DB_POSTGRESDB_USER: "{{ ae_db_user }}"
-      DB_POSTGRESDB_PASSWORD: "{{ ae_db_password }}"
-      N8N_HOST: "{{ ae_domain }}"
+      DB_POSTGRESDB_PASSWORD: "{{ tasky_db_ae_password | default(ae_db_password | default('')) }}"
+      N8N_HOST: "{{ ui_domain }}"
       N8N_PORT: 5678
       N8N_PROTOCOL: https
-      N8N_EDITOR_BASE_URL: "https://{{ ae_domain }}"
-      WEBHOOK_URL: "https://{{ ae_domain }}"
+      N8N_PATH: "/ae/"
+      N8N_PATH_PREFIX: "/ae/"
+      N8N_EDITOR_BASE_URL: "https://{{ ui_domain }}/ae/"
+      WEBHOOK_URL: "https://{{ ui_domain }}/ae/"
+{% if (tasky_n8n_owner_email | default('')) and (tasky_n8n_owner_password | default('')) %}
+      N8N_OWNER_EMAIL: "{{ tasky_n8n_owner_email }}"
+      N8N_OWNER_PASSWORD: "{{ tasky_n8n_owner_password }}"
+      N8N_OWNER_FIRST_NAME: "{{ tasky_n8n_owner_first_name | default('Tasky') }}"
+      N8N_OWNER_LAST_NAME: "{{ tasky_n8n_owner_last_name | default('Admin') }}"
+{% endif %}
+      N8N_BASIC_AUTH_ACTIVE: "{{ 'true' if (tasky_n8n_basic_auth_password | default('')) else 'false' }}"
+      N8N_BASIC_AUTH_USER: "{{ tasky_n8n_basic_auth_user | default('taskyhub') }}"
+      N8N_BASIC_AUTH_PASSWORD: "{{ tasky_n8n_basic_auth_password | default('') }}"
+      N8N_PROXY_HOPS: 1
       N8N_SECURE_COOKIE: "true"
       N8N_LOG_LEVEL: info
       N8N_LOG_OUTPUT: file
@@ -81,8 +93,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
-      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GF_SECURITY_ADMIN_USER: "{{ tasky_grafana_admin_user | default(grafana_admin_user | default('admin')) }}"
+      GF_SECURITY_ADMIN_PASSWORD: "{{ tasky_grafana_admin_password | default(grafana_admin_password | default('')) }}"
 
       # Branding
       GF_BRANDING_APP_TITLE: TaskyHub
@@ -103,7 +115,7 @@ services:
       GF_DATABASE_HOST: postgres
       GF_DATABASE_NAME: "{{ grafana_db_name }}"
       GF_DATABASE_USER: "{{ grafana_db_user }}"
-      GF_DATABASE_PASSWORD: "{{ grafana_db_password }}"
+      GF_DATABASE_PASSWORD: "{{ tasky_db_grafana_password | default(grafana_db_password | default('')) }}"
       GF_DATABASE_SSL_MODE: disable
 
     ports:
@@ -129,23 +141,32 @@ services:
     ports:
       - "127.0.0.1:{{ api_host_port }}:4000"
     environment:
-      JWT_SECRET: "{{ jwt_secret }}"
+      JWT_SECRET: "{{ tasky_app_jwt_secret | default(jwt_secret | default('')) }}"
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: "{{ postgres_db_name }}"
       DB_USER: "{{ postgres_db_user }}"
-      DB_PASSWORD: "{{ taskyhub_db_password }}"
+      DB_PASSWORD: "{{ tasky_db_main_password | default(taskyhub_db_password | default('')) }}"
       TASKY_ADMIN_EMAIL: "{{ tasky_admin_email | default('devops@taskyhub.local') }}"
-      TASKY_ADMIN_PASSWORD: "{{ tasky_admin_password }}"
+      TASKY_ADMIN_PASSWORD: "{{ tasky_app_admin_password | default(tasky_admin_password | default('')) }}"
       TASKY_USER_EMAIL: "{{ tasky_user_email | default('developer@taskyhub.local') }}"
-      TASKY_USER_PASSWORD: "{{ tasky_user_password | default('') }}"
+      TASKY_USER_PASSWORD: "{{ tasky_app_user_password | default(tasky_user_password | default('')) }}"
       TASKY_SUBSCRIPTION_ID: "{{ subscription_id | default('') }}"
       AE_DB_NAME: "{{ ae_db_name }}"
       AE_DB_USER: "{{ ae_db_user }}"
-      AE_DB_PASSWORD: "{{ ae_db_password }}"
+      AE_DB_PASSWORD: "{{ tasky_db_ae_password | default(ae_db_password | default('')) }}"
       GRAFANA_URL: http://grafana:3000
       AE_INTERNAL_URL: http://ae:5678
       AE_PUBLIC_URL: "{{ ae_public_url }}"
+      TASKY_PUBLIC_URL: "{{ ui_base_url }}"
+      TASKY_N8N_PATH_PREFIX: "/ae"
+      TASKY_N8N_API_KEY: "{{ tasky_n8n_api_key | default('') }}"
+      TASKY_N8N_BASIC_AUTH_USER: "{{ tasky_n8n_basic_auth_user | default('') }}"
+      TASKY_N8N_BASIC_AUTH_PASSWORD: "{{ tasky_n8n_basic_auth_password | default('') }}"
+      TASKY_INTEGRATIONS_ENCRYPTION_KEY_B64: "{{ tasky_integrations_encryption_key_b64 | default('') }}"
+      TASKY_SLACK_CLIENT_ID: "{{ tasky_slack_client_id | default('') }}"
+      TASKY_SLACK_CLIENT_SECRET: "{{ tasky_slack_client_secret | default('') }}"
+      TASKY_SLACK_SCOPES: "{{ tasky_slack_scopes | default('chat:write,channels:read,groups:read,im:read,mpim:read') }}"
       API_ALLOWED_ORIGINS: "{{ api_allowed_origins | join(',') }}"
       AE_LOG_FILE_PATH: /var/log/ae/n8n.log
     volumes:
@@ -181,7 +202,7 @@ services:
       - taskyhub_net
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"]
       interval: 10s

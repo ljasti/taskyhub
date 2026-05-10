@@ -1,8 +1,20 @@
 ---
-# Example shared settings for tasky_servers
-
 environment: "production"
 project_name: "taskyhub"
 
-# DO NOT keep:
-# app_dir: "/home/ubuntu/taskyhub"
+app_dir: "/opt/taskyhub"
+
+tasky_db_main_user: "th_db_{{ customer_name }}"
+tasky_db_ae_user: "th_ae_{{ customer_name }}"
+tasky_db_grafana_user: "th_grafana_{{ customer_name }}"
+
+tasky_db_main_name: "th_db_{{ customer_name }}"
+tasky_db_ae_name: "th_ae_{{ customer_name }}"
+tasky_db_grafana_name: "th_grafana_{{ customer_name }}"
+
+default_admin_username: "admin"
+default_user_username: "user"
+
+subscription_id: "11111111-1111-1111-1111-111111111111"
+
+container_prefix: "{{ customer_name }}"

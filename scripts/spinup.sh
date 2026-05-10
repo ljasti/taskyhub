@@ -61,9 +61,6 @@ required_vars=(
     'UI_PORT'
     'API_DOMAIN'
     'API_PORT'
-    'N8N_PASSWORD'
-    'ADMIN_PASSWORD'
-    'USER_PASSWORD'
     'SSH_KEY_PATH'
 )
 
@@ -117,9 +114,6 @@ ui_domain            = "$UI_DOMAIN"
 ui_port               = "$UI_PORT"
 api_domain           = "$API_DOMAIN"
 api_port             = "$API_PORT"
-ae_admin_password    = "$N8N_PASSWORD"
-admin_password       = "$ADMIN_PASSWORD"
-user_password        = "$USER_PASSWORD"
 EOF
 
 print_success "terraform.auto.tfvars created"

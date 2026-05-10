@@ -42,16 +42,24 @@ api_allowed_origins:
   - "https://{{ ae_domain }}"
 
 # Main app DB
-postgres_db_name: "th_db_{{ customer_name }}"
-postgres_db_user: "th_db_{{ customer_name }}"
+tasky_db_main_name: "th_db_{{ customer_name }}"
+tasky_db_main_user: "th_db_{{ customer_name }}"
 
 # AE (n8n) DB
-ae_db_name: "th_ae_{{ customer_name }}"
-ae_db_user: "th_ae_{{ customer_name }}"
+tasky_db_ae_name: "th_ae_{{ customer_name }}"
+tasky_db_ae_user: "th_ae_{{ customer_name }}"
 
 # Grafana DB
-grafana_db_name: "th_grafana_{{ customer_name }}"
-grafana_db_user: "th_grafana_{{ customer_name }}"
+tasky_db_grafana_name: "th_grafana_{{ customer_name }}"
+tasky_db_grafana_user: "th_grafana_{{ customer_name }}"
+
+# Backward-compatible aliases (legacy variable names)
+postgres_db_name: "{{ tasky_db_main_name }}"
+postgres_db_user: "{{ tasky_db_main_user }}"
+ae_db_name: "{{ tasky_db_ae_name }}"
+ae_db_user: "{{ tasky_db_ae_user }}"
+grafana_db_name: "{{ tasky_db_grafana_name }}"
+grafana_db_user: "{{ tasky_db_grafana_user }}"
 
 # Subscription ID must be a valid UUID (e.g. 11111111-1111-1111-1111-111111111111)
 subscription_id: "11111111-1111-1111-1111-111111111111"
@@ -60,6 +68,13 @@ subscription_tier: "pro"
 default_admin_username: "admin"
 default_user_username: "user"
 
-# Login bootstrap (set tasky_admin_password in vault/secrets.yml to match your local password)
-tasky_admin_email: "devops@taskyhub.local"
-tasky_user_email: "developer@taskyhub.local"
+# Login bootstrap (set tasky_app_admin_password and tasky_app_user_password in vault/secrets.yml)
+tasky_app_admin_email: "devops@taskyhub.local"
+tasky_app_user_email: "developer@taskyhub.local"
+
+# Backward-compatible aliases (legacy variable names)
+tasky_admin_email: "{{ tasky_app_admin_email }}"
+tasky_user_email: "{{ tasky_app_user_email }}"
+
+ui_host_port: 8080
+api_host_port: 4000

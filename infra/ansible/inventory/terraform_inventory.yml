@@ -2,10 +2,10 @@ all:
   children:
     tasky_servers:
       hosts:
-        tasky-mummy:
-          ansible_host: 18.61.166.166
+        tasky-daddy:
+          ansible_host: 98.130.134.89
           ansible_user: supertasky
           ansible_ssh_private_key_file: /home/jlk/keys/poc.pem
           ansible_become: yes
           ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-          customer_name: mummy
+          customer_name: daddy

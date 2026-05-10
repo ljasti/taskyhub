@@ -1,0 +1,115 @@
+How to access Postgres database
+        #Superuser access
+        docker exec -it daddy_postgres psql -U postgres
+
+        # Main Tasky app database
+            docker exec -it daddy_postgres env PGPASSWORD="{{ tasky_db_super_password }}" \
+        psql -U th_db_daddy -d th_db_daddy
+
+        # AE (n8n) database
+            docker exec -it daddy_postgres env PGPASSWORD="{{ tasky_db_ae_password }}" \
+        psql -U th_ae_daddy -d th_ae_daddy
+
+        # Grafana database
+            docker exec -it daddy_postgres env PGPASSWORD="{{ tasky_db_grafana_password }}" \
+        psql -U th_grafana_daddy -d th_grafana_daddy
+
+
+Global inspection (inside psql):
+        -- List all databases
+        \l
+
+        -- List all roles (users)
+        \du
+
+        -- Show current connection info
+        \conninfo
+
+        -- Switch database
+        \c th_db_daddy
+        \c th_ae_daddy
+
+
+Tables and schema
+    -- List all tables in current DB
+    \dt
+
+    -- List tables in a specific schema (usually public)
+    \dt public.*
+
+    -- Describe table structure (columns, types, indexes)
+    \d+ table_name
+
+-- Find tables by name pattern
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+    AND table_name ILIKE '%subscription%';
+
+    -- Find columns by name pattern
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND column_name ILIKE '%subscription_id%';
+
+
+Data inspection
+    -- Preview some rows
+    SELECT * FROM table_name LIMIT 10;
+
+    -- Count rows
+    SELECT COUNT(*) FROM table_name;
+
+    -- Check specific user/tenant row
+    SELECT * FROM users WHERE email = '{{ tasky_db_admin_email }}';
+
+    -- See which subscription a user is on
+    SELECT id, email, subscription_id FROM users LIMIT 20;
+
+
+Indexes and constraints
+    -- Show indexes on a table
+    \d table_name
+
+    -- Show foreign keys referencing a table
+    SELECT
+    tc.table_name,
+    kcu.column_name,
+    ccu.table_name AS foreign_table,
+    ccu.column_name AS foreign_column
+    FROM information_schema.table_constraints AS tc
+    JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+    WHERE constraint_type = 'FOREIGN KEY'
+    AND ccu.table_name = 'subscriptions';
+
+
+
+Connection and locks (performance/debug)
+    -- See active connections
+    SELECT pid, usename, datname, client_addr, state, query
+    FROM pg_stat_activity
+    ORDER BY state, pid;
+
+    -- See locks
+    SELECT * FROM pg_locks;
+
+
+
+Basic maintenance / safety checks
+    -- Estimate table size
+    SELECT
+    relname AS table,
+    pg_size_pretty(pg_total_relation_size(relid)) AS size
+    FROM pg_catalog.pg_statio_user_tables
+    ORDER BY pg_total_relation_size(relid) DESC;
+
+    -- Check last autovacuum runs
+    SELECT relname, last_vacuum, last_autovacuum
+    FROM pg_stat_user_tables
+    ORDER BY last_autovacuum DESC NULLS LAST;
+
+
+

@@ -20,9 +20,7 @@
 - **Grafana DB:** `th_grafana_{customer}` - Example: `th_grafana_besty`
 
 ## Application Users (TaskyHub Web App)
-- **Default Admin:** `th-{customer}-admin` - Example: `th-besty-admin`
-- **Default User:** `th-{customer}-user` - Example: `th-besty-user`
-- **Custom Format:** `{customer_prefix}-{role}` (customizable per client)
+- Seeded users are defined by email/password variables in Ansible Vault.
 
 ## Docker Containers
 - **Prefix:** `{customer}_` - Example: `besty_postgres`, `besty_ae`
@@ -31,4 +29,5 @@
 - **Format:** `sub-{customer}-{tier}` - Example: `sub-besty-premium`
 
 ## Hostnames
-- **Format:** `tasky-{customer}.{domain}` - Example: `tasky.amroth.life`
+- **UI:** `{customer}.{base_domain}` - Example: `mummy.taskyhub.xyz`
+- **AE:** `ae.{customer}.{base_domain}` - Example: `ae.mummy.taskyhub.xyz`

@@ -1,0 +1,523 @@
+---
+# playbooks/02-deploy-taskyhub.yml
+# This playbook deploys the TaskyHub application stack including:
+# - Main Application API and UI
+# - PostgreSQL Database (parameterized per customer)
+# - Automation Engine (AE) based on n8n
+# - Grafana Dashboards
+#
+# Data Sources:
+# - ../vault/secrets.yml: Encrypted plaintext secrets (bcrypt hashes live only in Postgres)
+# - ../vars.yml: Customer-specific variables (customer_name, domains, etc.)
+# - ../group_vars/tasky_servers.yml: Global project conventions
+
+- name: Deploy TaskyHub Application
+  hosts: tasky_servers
+  become: yes
+
+  vars_files:
+    - ../vault/secrets.yml              # Encrypted secrets
+    - ../vars.yml                       # Customer-specific vars
+    - ../group_vars/tasky_servers.yml   # Naming conventions
+
+  vars:
+    app_dir: /opt/taskyhub
+    compose_file: "{{ app_dir }}/docker-compose.yml"
+    # From your repo tree: local/app contains api, ui, grafana, init.sql, tasky.conf
+    local_app_dir: "{{ playbook_dir }}/../../../local/app"
+    ae_logs_dir: "/opt/{{ customer_name }}/ae-logs"
+
+  pre_tasks:
+    - name: Set postgres container name
+      set_fact:
+        postgres_container: "{{ customer_name }}_postgres"
+
+    - name: Verify required secrets are defined
+      assert:
+        that:
+          - customer_name is defined
+          - tasky_db_super_password is defined and (tasky_db_super_password | length) > 0
+          - tasky_db_main_password is defined and (tasky_db_main_password | length) > 0
+          - tasky_db_ae_password is defined and (tasky_db_ae_password | length) > 0
+          - tasky_db_grafana_password is defined and (tasky_db_grafana_password | length) > 0
+          - tasky_app_jwt_secret is defined and (tasky_app_jwt_secret | length) > 0
+          - tasky_app_admin_password is defined and (tasky_app_admin_password | length) > 0
+          - tasky_app_user_password is defined and (tasky_app_user_password | length) > 0
+          - tasky_grafana_admin_user is defined and (tasky_grafana_admin_user | length) > 0
+          - tasky_grafana_admin_password is defined and (tasky_grafana_admin_password | length) > 0
+        fail_msg: "Missing required variables. Check vault/secrets.yml and vars.yml"
+        success_msg: "✅ All required secrets loaded successfully"
+
+    - name: Warn if integrations encryption key is not configured
+      debug:
+        msg: |
+          Integrations are not configured: missing tasky_integrations_encryption_key_b64 in vault/secrets.yml.
+          - The TaskyHub dashboard Integrations page will load, but saving/testing connections will return 503 until configured.
+      when: tasky_integrations_encryption_key_b64 is not defined or (tasky_integrations_encryption_key_b64 | length) == 0
+
+    - name: Warn if n8n API auth is not configured for backend-driven credential mirroring
+      debug:
+        msg: |
+          TaskyHub → n8n API auth is not configured (recommended for integrations mirroring).
+          Set one of:
+          - tasky_n8n_api_key
+          - OR tasky_n8n_basic_auth_user + tasky_n8n_basic_auth_password
+          Saving connections will return 503 until configured.
+      when: >
+        (tasky_n8n_api_key is not defined or (tasky_n8n_api_key | length) == 0)
+        and
+        (tasky_n8n_basic_auth_password is not defined or (tasky_n8n_basic_auth_password | length) == 0)
+
+    - name: Display deployment configuration
+      debug:
+        msg: |
+          ==========================================
+          TaskyHub Deployment: {{ customer_name }}
+          ==========================================
+          Database Users:
+            - Main: {{ tasky_db_main_user }}
+            - AE: {{ tasky_db_ae_user }}
+            - Grafana: {{ tasky_db_grafana_user }}
+          Database Names:
+            - Main: {{ tasky_db_main_name }}
+            - AE: {{ tasky_db_ae_name }}
+            - Grafana: {{ tasky_db_grafana_name }}
+          Application Users:
+            - Admin: {{ tasky_app_admin_email }}
+            - User: {{ tasky_app_user_email }}
+          Subscription: {{ subscription_id }}
+          UI URL: {{ ui_base_url | default('https://' + (ui_domain | default('UNDEFINED'))) }}
+          UI Host Port: {{ ui_host_port | default('UNDEFINED') }}
+          API URL (browser): {{ api_base_url | default('https://' + (ui_domain | default('UNDEFINED')) + '/api') }}
+          API Host Port (localhost): {{ api_host_port | default('UNDEFINED') }}
+          ==========================================
+
+  tasks:
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure AE logs directory exists
+      file:
+        path: "{{ ae_logs_dir }}"
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: "0755"
+
+    - name: Ensure logrotate is installed
+      apt:
+        name: logrotate
+        state: present
+        update_cache: yes
+
+    - name: Configure logrotate for AE logs (7-day retention)
+      template:
+        src: "{{ playbook_dir }}/../templates/logrotate_n8n.conf.j2"
+        dest: "/etc/logrotate.d/n8n-{{ customer_name }}"
+        mode: "0644"
+
+    - name: Copy API from local/app
+      copy:
+        src: "{{ local_app_dir }}/api/"
+        dest: "{{ app_dir }}/api/"
+        mode: preserve
+
+    - name: Copy UI from local/app
+      copy:
+        src: "{{ local_app_dir }}/ui/"
+        dest: "{{ app_dir }}/ui/"
+        mode: preserve
+
+    - name: Copy Grafana from local/app
+      copy:
+        src: "{{ local_app_dir }}/grafana/"
+        dest: "{{ app_dir }}/grafana/"
+        mode: preserve
+
+    - name: Template init.sql with parameterized naming
+      template:
+        src: "{{ playbook_dir }}/../roles/taskyhub_deploy/templates/init.sql.j2"
+        dest: "{{ app_dir }}/init.sql"
+        mode: "0644"
+
+    - name: Template docker-compose.yml (server version)
+      template:
+        src: "{{ playbook_dir }}/../templates/docker-compose.yml.j2"
+        dest: "{{ compose_file }}"
+        mode: "0644"
+
+    - name: Start Postgres first
+      command: docker compose -f "{{ compose_file }}" up -d postgres
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for Postgres healthcheck
+      command: docker inspect --format={{ '{{.State.Health.Status}}' }} {{ postgres_container }}
+      register: postgres_health
+      retries: 60
+      delay: 2
+      changed_when: false
+      until: postgres_health.stdout == "healthy"
+
+    # ---------- DATABASE & ROLE INITIALIZATION (idempotent) ----------
+
+    - name: Render TaskyHub DB + role bootstrap SQL for this customer
+      template:
+        src: "{{ playbook_dir }}/../templates/create_taskyhub_db.sql.j2"
+        dest: "/tmp/create_taskyhub_db_{{ tasky_db_main_name }}.sql"
+        mode: "0644"
+
+    - name: Create TaskyHub DB and role if missing
+      shell: |
+        docker exec -e PGPASSWORD='{{ tasky_db_super_password }}' -i {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+          < /tmp/create_taskyhub_db_{{ tasky_db_main_name }}.sql
+      args:
+        executable: /bin/bash
+
+    - name: Render TaskyHub schema/seed SQL for this customer
+      template:
+        src: "{{ playbook_dir }}/../templates/init_taskyhub_schema.sql.j2"
+        dest: "/tmp/init_taskyhub_schema_{{ tasky_db_main_name }}.sql"
+        mode: "0644"
+
+    - name: Run TaskyHub schema/seed SQL for this customer
+      shell: |
+        docker exec -e PGPASSWORD='{{ tasky_db_super_password }}' -i {{ postgres_container }} \
+          psql -h 127.0.0.1 -U postgres -d {{ tasky_db_main_name }} -v ON_ERROR_STOP=1 \
+          < /tmp/init_taskyhub_schema_{{ tasky_db_main_name }}.sql
+      args:
+        executable: /bin/bash
+
+    - name: Ensure AE and Grafana databases and users are correct
+      shell: |
+        docker exec -e PGPASSWORD='{{ tasky_db_super_password }}' -i {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ tasky_db_ae_user }}') THEN
+            CREATE ROLE {{ tasky_db_ae_user }} LOGIN PASSWORD '{{ tasky_db_ae_password }}';
+          ELSE
+            ALTER ROLE {{ tasky_db_ae_user }} WITH LOGIN PASSWORD '{{ tasky_db_ae_password }}';
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ tasky_db_grafana_user }}') THEN
+            CREATE ROLE {{ tasky_db_grafana_user }} LOGIN PASSWORD '{{ tasky_db_grafana_password }}';
+          ELSE
+            ALTER ROLE {{ tasky_db_grafana_user }} WITH LOGIN PASSWORD '{{ tasky_db_grafana_password }}';
+          END IF;
+        END
+        $$;
+
+        SELECT 'CREATE DATABASE {{ tasky_db_ae_name }} OWNER {{ tasky_db_ae_user }}'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ tasky_db_ae_name }}') \gexec
+        SELECT 'CREATE DATABASE {{ tasky_db_grafana_name }} OWNER {{ tasky_db_grafana_user }}'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{{ tasky_db_grafana_name }}') \gexec
+
+        GRANT ALL PRIVILEGES ON DATABASE {{ tasky_db_ae_name }} TO {{ tasky_db_ae_user }};
+        GRANT ALL PRIVILEGES ON DATABASE {{ tasky_db_grafana_name }} TO {{ tasky_db_grafana_user }};
+        SQL
+      args:
+        executable: /bin/bash
+
+    - name: Wait until required roles exist
+      command: >
+        docker exec -e PGPASSWORD={{ tasky_db_super_password }} {{ postgres_container }}
+        psql -h 127.0.0.1 -U postgres -d postgres -tAc
+        "SELECT COUNT(*) FROM pg_roles WHERE rolname IN ('{{ tasky_db_main_user }}','{{ tasky_db_ae_user }}','{{ tasky_db_grafana_user }}');"
+      register: role_count
+      retries: 30
+      delay: 2
+      changed_when: false
+      until: (role_count.stdout | trim) == "3"
+
+    - name: Wait until required databases exist
+      command: >
+        docker exec -e PGPASSWORD={{ tasky_db_super_password }} {{ postgres_container }}
+        psql -h 127.0.0.1 -U postgres -d postgres -tAc
+        "SELECT COUNT(*) FROM pg_database WHERE datname IN ('{{ tasky_db_main_name }}','{{ tasky_db_ae_name }}','{{ tasky_db_grafana_name }}');"
+      register: db_count
+      retries: 30
+      delay: 2
+      changed_when: false
+      until: (db_count.stdout | trim) == "3"
+
+    # ---------- Schema grants ----------
+
+    - name: Ensure schema grants in main app database
+      command: >
+        docker exec -e PGPASSWORD={{ tasky_db_super_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ tasky_db_main_name }} -v ON_ERROR_STOP=1 -c
+        "GRANT ALL ON SCHEMA public TO {{ tasky_db_main_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ tasky_db_main_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ tasky_db_main_user }}; GRANT USAGE ON SCHEMA public TO {{ tasky_db_grafana_user }}; GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ tasky_db_grafana_user }}; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {{ tasky_db_grafana_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {{ tasky_db_grafana_user }};"
+
+    - name: Ensure schema grants in AE (n8n) database
+      command: >
+        docker exec -e PGPASSWORD={{ tasky_db_super_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ tasky_db_ae_name }} -v ON_ERROR_STOP=1 -c
+        "GRANT ALL ON SCHEMA public TO {{ tasky_db_ae_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ tasky_db_ae_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ tasky_db_ae_user }}; GRANT USAGE ON SCHEMA public TO {{ tasky_db_main_user }}; GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ tasky_db_main_user }}; GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {{ tasky_db_main_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {{ tasky_db_main_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {{ tasky_db_main_user }};"
+
+    - name: Ensure schema grants in Grafana database
+      command: >
+        docker exec -e PGPASSWORD={{ tasky_db_super_password }} {{ postgres_container }} psql -h 127.0.0.1 -U postgres -d {{ tasky_db_grafana_name }} -v ON_ERROR_STOP=1 -c
+        "GRANT ALL ON SCHEMA public TO {{ tasky_db_grafana_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ tasky_db_grafana_user }}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ tasky_db_grafana_user }};"
+
+    # ---------- App tables verification ----------
+
+    - name: Ensure TaskyHub app tables exist
+      command: >
+        docker exec -e PGPASSWORD={{ tasky_db_super_password }} {{ postgres_container }}
+        psql -h 127.0.0.1 -U postgres -d {{ tasky_db_main_name }} -tAc
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('users','subscriptions');"
+      register: app_tables
+      retries: 30
+      delay: 2
+      changed_when: false
+      until: (app_tables.stdout | trim) == "2"
+
+    # ---------- Start services: API, AE (n8n), Grafana, UI ----------
+
+    - name: Start API after DB is ready
+      command: docker compose -f "{{ compose_file }}" up -d --build api
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Start UI after API (rebuild to pick up latest UI changes)
+      command: docker compose -f "{{ compose_file }}" up -d --build ui
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Start AE (n8n) after API
+      command: docker compose -f "{{ compose_file }}" up -d ae
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Set AE container name
+      set_fact:
+        ae_container_name: "{{ customer_name }}_ae"
+
+    - name: Wait for AE container to be healthy
+      command: >
+        docker inspect --format "{{'{{'}}.State.Health.Status{{'}}'}}" {{ ae_container_name }}
+      register: ae_health
+      retries: 20
+      delay: 3
+      changed_when: false
+      until: (ae_health.stdout | trim) == "healthy"
+
+    - name: Verify AE (n8n) is using Postgres database (tables exist)
+      command: >
+        docker exec -e PGPASSWORD={{ tasky_db_super_password }} {{ postgres_container }}
+        psql -h 127.0.0.1 -U postgres -d {{ tasky_db_ae_name }} -tAc
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';"
+      register: ae_db_table_count
+      retries: 30
+      delay: 2
+      changed_when: false
+      until: (ae_db_table_count.stdout | trim | int) > 0
+
+    - name: AE owner setup guidance (browser-based, persisted in Postgres)
+      debug:
+        msg: |
+          AE (n8n) is running and connected to Postgres.
+          This n8n version shows the setup screen until the first owner is created in the UI.
+
+          Open: https://{{ ui_domain }}/ae/
+          Complete the owner setup once in the browser (the form may be prefilled from N8N_OWNER_* env vars).
+
+          After setup, the login screen will appear on subsequent visits and the owner will persist in DB {{ tasky_db_ae_name }}.
+
+    - name: Start Grafana after AE
+      command: docker compose -f "{{ compose_file }}" up -d grafana
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Ensure all containers are running and healthy
+      command: docker compose -f "{{ compose_file }}" up -d --wait
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Ensure Nginx is started and enabled
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Remove default Nginx site
+      file:
+        path: "{{ nginx_sites_enabled_dir }}/default"
+        state: absent
+
+    - name: Set primary Let's Encrypt domain (first item)
+      set_fact:
+        letsencrypt_primary_domain: "{{ letsencrypt_domains[0] }}"
+      when: letsencrypt_domains | length > 0
+
+    # determine if cert directory exists for the chosen cert_name
+    - name: Determine cert_name to use for Nginx
+      set_fact:
+        nginx_cert_name: "{{ letsencrypt_primary_domain | default(ui_domain) }}"
+
+    - name: Check if Let's Encrypt cert directory exists
+      stat:
+        path: "/etc/letsencrypt/live/{{ nginx_cert_name }}"
+      register: letsencrypt_cert_dir
+
+    - name: Set nginx SSL enabled flag based on cert presence
+      set_fact:
+        nginx_ssl_enabled: "{{ letsencrypt_cert_dir.stat.exists | default(false) }}"
+
+    - name: Deploy Nginx vhost for UI (HTTP or HTTPS depending on cert)
+      template:
+        src: "{{ playbook_dir }}/../templates/nginx_vhost.conf.j2"
+        dest: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ui_domain }}"
+        cert_name: "{{ nginx_cert_name }}"
+        backend_port: "{{ ui_host_port }}"
+        nginx_api_host_port: "{{ api_host_port | default(4000) }}"
+        nginx_ae_host_port: "{{ ae_host_port | default(5678) }}"
+        nginx_grafana_host_port: "{{ grafana_port | default(3000) }}"
+        ssl_enabled: "{{ nginx_ssl_enabled }}"
+
+    - name: Enable UI site
+      file:
+        src: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        dest: "{{ nginx_sites_enabled_dir }}/{{ ui_domain }}.conf"
+        state: link
+        force: yes
+
+    - name: Deploy Nginx vhost for AE (HTTP or HTTPS depending on cert)
+      template:
+        src: "{{ playbook_dir }}/../templates/nginx_vhost.conf.j2"
+        dest: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ae_domain }}"
+        cert_name: "{{ nginx_cert_name }}"
+        backend_port: "{{ ae_host_port }}"
+        nginx_api_host_port: ""
+        nginx_ae_host_port: ""
+        nginx_grafana_host_port: ""
+        ssl_enabled: "{{ nginx_ssl_enabled }}"
+
+    - name: Enable AE site
+      file:
+        src: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        dest: "{{ nginx_sites_enabled_dir }}/{{ ae_domain }}.conf"
+        state: link
+        force: yes
+
+    - name: Test nginx config
+      command: nginx -t
+      changed_when: false
+
+    - name: Reload nginx
+      service:
+        name: nginx
+        state: reloaded
+
+    - name: Ensure certbot is installed
+      apt:
+        name: certbot
+        state: present
+        update_cache: yes
+
+    - name: Ensure certbot webroot directory exists
+      file:
+        path: "{{ certbot_webroot }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Obtain/renew Let's Encrypt certificate (UI + AE domains)        
+      command: >
+        certbot certonly --webroot
+        -w {{ certbot_webroot }}
+        {% for d in letsencrypt_domains %}-d {{ d }} {% endfor %}
+        --email {{ letsencrypt_email }}
+        --agree-tos
+        --non-interactive
+        --keep-until-expiring
+      args:
+        creates: "/etc/letsencrypt/live/{{ nginx_cert_name }}/fullchain.pem"
+
+    - name: Check if Let's Encrypt cert directory exists (post-cert)
+      stat:
+        path: "/etc/letsencrypt/live/{{ nginx_cert_name }}"
+      register: letsencrypt_cert_dir_after
+
+    - name: Set nginx SSL enabled flag based on cert presence (post-cert)
+      set_fact:
+        nginx_ssl_enabled: "{{ letsencrypt_cert_dir_after.stat.exists | default(false) }}"
+
+    - name: Redeploy Nginx vhost for UI (post-cert)
+      template:
+        src: "{{ playbook_dir }}/../templates/nginx_vhost.conf.j2"
+        dest: "{{ nginx_sites_available_dir }}/{{ ui_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ui_domain }}"
+        cert_name: "{{ nginx_cert_name }}"
+        backend_port: "{{ ui_host_port }}"
+        nginx_api_host_port: "{{ api_host_port | default(4000) }}"
+        nginx_ae_host_port: "{{ ae_host_port | default(5678) }}"
+        nginx_grafana_host_port: "{{ grafana_port | default(3000) }}"
+        ssl_enabled: "{{ nginx_ssl_enabled }}"
+
+    - name: Redeploy Nginx vhost for AE (post-cert)
+      template:
+        src: "{{ playbook_dir }}/../templates/nginx_vhost.conf.j2"
+        dest: "{{ nginx_sites_available_dir }}/{{ ae_domain }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        server_name: "{{ ae_domain }}"
+        cert_name: "{{ nginx_cert_name }}"
+        backend_port: "{{ ae_host_port }}"
+        nginx_api_host_port: ""
+        nginx_ae_host_port: ""
+        nginx_grafana_host_port: ""
+        ssl_enabled: "{{ nginx_ssl_enabled }}"
+
+    - name: Test nginx config (post-cert)
+      command: nginx -t
+      changed_when: false
+
+    - name: Reload nginx (post-cert)
+      service:
+        name: nginx
+        state: reloaded
+
+  post_tasks:
+    - name: Deployment complete
+      debug:
+        msg: |
+          ==========================================
+          ✅ TaskyHub Deployment Complete!
+          ==========================================
+          Customer: {{ customer_name }}
+          Access: {{ ui_base_url | default('https://' + (ui_domain | default('UNDEFINED'))) }}
+          
+          Database Configuration:
+            - Main DB: {{ tasky_db_main_name }} / {{ tasky_db_main_user }}
+            - AE DB: {{ tasky_db_ae_name }} / {{ tasky_db_ae_user }}
+            - Grafana DB: {{ tasky_db_grafana_name }} / {{ tasky_db_grafana_user }}
+          
+          Default Users:
+            - Admin: {{ tasky_app_admin_email }}
+            - User: {{ tasky_app_user_email }}
+          ==========================================

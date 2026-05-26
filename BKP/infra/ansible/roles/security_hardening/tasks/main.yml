@@ -1,0 +1,20 @@
+---
+- name: Include user management tasks
+  include_tasks: users.yml
+  tags: [users]
+
+- name: Include SSH hardening tasks
+  include_tasks: ssh.yml
+  tags: [ssh]
+
+- name: Include firewall configuration
+  include_tasks: firewall.yml
+  tags: [firewall]
+
+- name: Include fail2ban setup
+  include_tasks: fail2ban.yml
+  tags: [fail2ban]
+
+- name: Include ubuntu user disable tasks
+  include_tasks: disable_ubuntu.yml
+  tags: [disable_ubuntu]

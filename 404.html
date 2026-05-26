@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Not Found | TaskyHub</title>
+  <meta name="description" content="TaskyHub page not found.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap nav">
+      <a class="brand brand-logoOnly" href="index.html" aria-label="TaskyHub home">
+        <img src="assets/logo.svg" alt="TaskyHub logo">
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a class="nav-link" href="index.html">Home</a>
+        <a class="nav-link" href="privacy/" data-file-href="privacy/index.html">Privacy</a>
+        <a class="nav-link" href="terms/" data-file-href="terms/index.html">Terms</a>
+        <a class="btn btn-primary" href="https://app.taskyhub.xyz">Go to app</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="not-found">
+    <div class="wrap">
+      <div class="not-found-card">
+        <h1>Page not found</h1>
+        <p>
+          If you were trying to open a legal page, TaskyHub will redirect common GitHub Pages edge cases such as
+          <code>/privacy</code> and <code>/terms</code> to their folder-based routes automatically.
+        </p>
+        <div class="cta-row" style="justify-content:center;">
+          <a class="btn btn-secondary" href="index.html">Home</a>
+          <a class="btn btn-secondary" href="privacy/" data-file-href="privacy/index.html">Privacy</a>
+          <a class="btn btn-secondary" href="terms/" data-file-href="terms/index.html">Terms</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      if (window.location.protocol === 'file:') {
+        document.querySelectorAll('a[data-file-href]').forEach(function (link) {
+          var fileHref = link.getAttribute('data-file-href');
+          if (fileHref) link.setAttribute('href', fileHref);
+        });
+        return;
+      }
+
+      var normalizedPath = window.location.pathname.replace(/\/+$/, "");
+      var redirects = {
+        "/privacy": "/privacy/",
+        "/terms": "/terms/"
+      };
+      if (redirects[normalizedPath]) {
+        window.location.replace(redirects[normalizedPath] + window.location.search + window.location.hash);
+      }
+    })();
+  </script>
+</body>
+</html>

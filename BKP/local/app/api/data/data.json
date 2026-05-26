@@ -1,0 +1,28 @@
+{
+  "subscriptions": [
+    {
+      "id": "sub-tasky-001",
+      "name": "TaskyHub Basic",
+      "seatLimit": 2,
+      "status": "active"
+    }
+  ],
+  "users": [
+    {
+      "id": "1",
+      "subscriptionId": "sub-tasky-001",
+      "email": "admin@taskyhub.local",
+      "password": "admin123",
+      "name": "Admin User",
+      "role": "admin"
+    },
+    {
+      "id": "2",
+      "subscriptionId": "sub-tasky-001",
+      "email": "user@taskyhub.local",
+      "password": "user123",
+      "name": "Standard User",
+      "role": "user"
+    }
+  ]
+}

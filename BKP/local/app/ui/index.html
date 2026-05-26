@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>TaskyHub</title>
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+  <link rel="alternate icon" href="images/favicon.ico">
+  <style>
+    body{margin:0;font-family:system-ui;background:#020617;color:white;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+    .box{text-align:center;max-width:440px;width:100%;padding:24px;}
+    img{width:240px;max-width:100%;display:block;margin:0 auto 24px;}
+    p{color:#94a3b8;font-size:1rem;line-height:1.6;}
+  </style>
+</head>
+<body>
+
+<script>
+if(localStorage.getItem("tasky_auth") === "true"){
+    window.location = "dashboard.html";
+} else {
+    window.location = "login.html";
+}
+</script>
+
+</body>
+</html>

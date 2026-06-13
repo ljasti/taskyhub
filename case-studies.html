@@ -10,21 +10,24 @@
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;550;650;750;800&display=swap" rel="stylesheet">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="wrap nav">
-      <a class="brand" href="index.html"><span class="brand-mark">TH</span><span>TaskyHub</span></a>
-      <nav class="nav-links" aria-label="Primary">
-        <a class="nav-link" href="index.html">Home</a>
-        <a class="nav-link" href="services.html">Platform</a>
-        <a class="nav-link" href="solutions.html">Use Cases</a>
-        <a class="nav-link active" href="case-studies.html">Examples</a>
-        <a class="nav-link" href="about.html">About</a>
-        <a class="btn btn-secondary" href="contact.html">Contact</a>
-      </nav>
+  <header class="topbar th-topbar">
+    <div class="wrap nav" role="navigation" aria-label="Primary">
+      <a class="brand brand-home" href="index.html" aria-label="TaskyHub home">
+        <span class="brandLogoFrame brandLogoFrame--nav">
+          <img class="brandLogo brandLogo--nav" src="assets/logo.svg" alt="TaskyHub">
+        </span>
+      </a>
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link" href="services.html">Platform</a>
+      <a class="nav-link" href="solutions.html">Solutions</a>
+      <a class="nav-link active" href="case-studies.html">Examples</a>
+      <a class="nav-link" href="about.html">About</a>
+      <a class="btn btn-secondary" href="contact.html">Contact</a>
     </div>
   </header>
 
@@ -88,14 +91,18 @@
   <footer class="footer">
     <div class="wrap footer-grid">
       <div>
-        <a class="brand" href="index.html"><span class="brand-mark">TH</span><span>TaskyHub</span></a>
+        <a class="brand brand-home" href="index.html" aria-label="TaskyHub home">
+        <span class="brandLogoFrame brandLogoFrame--nav">
+          <img class="brandLogo brandLogo--nav" src="assets/logo.svg" alt="TaskyHub">
+        </span>
+      </a>
         <p>Examples that reflect the product direction of the TaskyHub app.</p>
       </div>
       <div>
         <div class="footer-title">Pages</div>
         <ul class="footer-list">
           <li><a href="services.html">Platform</a></li>
-          <li><a href="solutions.html">Use Cases</a></li>
+          <li><a href="solutions.html">Solutions</a></li>
           <li><a href="about.html">About</a></li>
         </ul>
       </div>

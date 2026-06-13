@@ -1,0 +1,51 @@
+/* Logo panel elevation — shade-only depth (no borders) */
+
+.brandLogoFrame,
+.loadingLogoFrame {
+	position: relative;
+	isolation: isolate;
+	border: none;
+	background: var(--logo-panel-bg);
+	border-radius: var(--logo-panel-radius);
+	box-shadow: var(--logo-panel-shadow);
+	overflow: hidden;
+}
+
+html.theme-white .brandLogoFrame::before,
+html.theme-light .brandLogoFrame::before,
+html.theme-blue .brandLogoFrame::before,
+html.theme-dark .brandLogoFrame::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+html.theme-white .sidebarHeader:hover .brandLogoFrame,
+html.theme-light .sidebarHeader:hover .brandLogoFrame,
+html.theme-white .loginCard:hover .brandLogoFrame,
+html.theme-light .loginCard:hover .brandLogoFrame,
+html.theme-blue .sidebarHeader:hover .brandLogoFrame,
+html.theme-dark .sidebarHeader:hover .brandLogoFrame,
+html.theme-blue .loginCard:hover .brandLogoFrame,
+html.theme-dark .loginCard:hover .brandLogoFrame,
+.theme-dark .loginCard:hover .brandLogoFrame {
+	box-shadow: var(--logo-panel-shadow-hover);
+}
+
+html.theme-white .loadingCard,
+html.theme-light .loadingCard {
+	background: var(--logo-panel-surround-bg);
+	border-color: rgba(13, 93, 116, 0.18);
+	box-shadow:
+		0 4px 12px rgba(13, 93, 116, 0.16),
+		0 18px 40px rgba(13, 93, 116, 0.2);
+	color: #f0f9ff;
+}
+
+html.theme-white .loadingCard .muted,
+html.theme-light .loadingCard .muted {
+	color: rgba(240, 249, 255, 0.88);
+}

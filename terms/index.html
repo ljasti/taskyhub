@@ -10,21 +10,22 @@
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;550;650;750;800&display=swap" rel="stylesheet">
+  <script src="../theme.js"></script>
   <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="wrap nav">
-      <a class="brand brand-logoOnly" href="../index.html" aria-label="TaskyHub home">
-        <img src="../assets/logo.svg" alt="TaskyHub logo">
+  <header class="topbar th-topbar">
+    <div class="wrap nav" role="navigation" aria-label="Primary">
+      <a class="brand brand-home" href="../index.html" aria-label="TaskyHub home">
+        <span class="brandLogoFrame brandLogoFrame--nav">
+          <img class="brandLogo brandLogo--nav" src="../assets/logo.svg" alt="TaskyHub">
+        </span>
       </a>
-      <nav class="nav-links" aria-label="Primary">
-        <a class="nav-link" href="../index.html">Home</a>
-        <a class="nav-link" href="../privacy/" data-file-href="../privacy/index.html">Privacy</a>
-        <a class="nav-link active" href="../terms/" data-file-href="../terms/index.html">Terms</a>
-        <a class="btn btn-primary" href="https://dev.taskyhub.xyz">Go to app</a>
-      </nav>
+      <a class="nav-link" href="../index.html">Home</a>
+      <a class="nav-link" href="../privacy/" data-file-href="../privacy/index.html">Privacy</a>
+      <a class="nav-link active" href="../terms/" data-file-href="../terms/index.html">Terms</a>
+      <a class="btn btn-primary nav-cta" href="https://dev.taskyhub.xyz">Go to app</a>
     </div>
   </header>
 
@@ -112,9 +113,11 @@
   <footer class="footer">
     <div class="wrap footer-grid">
       <div>
-        <a class="brand brand-logoOnly" href="../index.html" aria-label="TaskyHub home">
-          <img src="../assets/logo.svg" alt="TaskyHub logo">
-        </a>
+        <a class="brand brand-home" href="../index.html" aria-label="TaskyHub home">
+        <span class="brandLogoFrame brandLogoFrame--nav">
+          <img class="brandLogo brandLogo--nav" src="../assets/logo.svg" alt="TaskyHub">
+        </span>
+      </a>
         <p>Static marketing site for the TaskyHub SaaS platform.</p>
       </div>
       <div>

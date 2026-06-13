@@ -3,28 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TaskyHub | Developer-Oriented SaaS Workflow Automation</title>
+  <title>TaskyHub | AI-powered Prompt → Workflow automation</title>
   <meta
     name="description"
-    content="TaskyHub is a developer-oriented SaaS platform for workflow automation, agentic workflows, integrations, orchestration, and workspace-scoped operational control."
+    content="TaskyHub turns plain-English prompts into canvas workflows—AI-powered or Non-AI runtime— with workspace integrations, run analytics, and White or Blue themes."
   >
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;550;650;750;800&display=swap" rel="stylesheet">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="wrap nav">
-      <a class="brand brand-logoOnly" href="index.html" aria-label="TaskyHub home">
-        <img src="assets/logo.svg" alt="TaskyHub logo">
+  <header class="topbar th-topbar">
+    <div class="wrap nav" role="navigation" aria-label="Primary">
+      <a class="brand brand-home" href="index.html" aria-label="TaskyHub home">
+        <span class="brandLogoFrame brandLogoFrame--nav">
+          <img class="brandLogo brandLogo--nav" src="assets/logo.svg" alt="TaskyHub">
+        </span>
       </a>
-      <nav class="nav-links" aria-label="Primary">
-        <a class="nav-link active" href="index.html">Home</a>
-        <a class="nav-link" href="privacy/" data-file-href="privacy/index.html">Privacy</a>
-        <a class="nav-link" href="terms/" data-file-href="terms/index.html">Terms</a>
-        <a class="btn btn-primary" href="https://dev.taskyhub.xyz">Go to app</a>
-      </nav>
+      <a class="nav-link active" href="index.html">Home</a>
+      <a class="nav-link" href="services.html" data-file-href="services.html">Platform</a>
+      <a class="nav-link" href="solutions.html" data-file-href="solutions.html">Solutions</a>
+      <a class="nav-link" href="case-studies.html" data-file-href="case-studies.html">Examples</a>
+      <a class="nav-link" href="about.html" data-file-href="about.html">About</a>
+      <a class="btn btn-primary nav-cta" href="https://dev.taskyhub.xyz">Go to app</a>
     </div>
   </header>
 
@@ -32,96 +35,51 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <section>
-          <span class="eyebrow">Developer-oriented SaaS workflow automation</span>
-          <h1>Analytics-rich automation for AI, voice, RAG, and workspace-aware orchestration.</h1>
+          <span class="eyebrow">AI-powered workflow automation</span>
+          <h1 class="th-text-shine">From prompt to canvas in minutes.</h1>
           <p class="hero-subtitle">
-            TaskyHub helps technical teams build and operate multi-tenant automation with workspace-scoped credentials,
-            reusable workflow assets, analytics, agentic workflow steps, voice-ready flows, and a clear separation between control-plane UX and runtime engine behavior.
+            Use Prompt → Workflow to describe steps in plain English—AI-powered mode drafts agentic flows,
+            Non-AI mode maps HTTP, transforms, and integrations to the canvas. Connect your tools and monitor
+            every run from the hub with workspace-scoped analytics.
           </p>
           <div class="cta-row">
-            <a class="btn btn-primary" href="https://dev.taskyhub.xyz">Go to app</a>
-            <a class="btn btn-link" href="#use-cases">Explore use cases</a>
+      <a class="btn btn-primary nav-cta" href="https://dev.taskyhub.xyz">Go to app</a>
+      <a class="btn btn-link" href="services.html">Explore platform</a>
           </div>
           <div class="hero-note">
-            <span>Analytics</span>
-            <span>AI agents</span>
-            <span>Voice flows</span>
-            <span>RAG retrieval</span>
-          </div>
-          <div class="hero-highlights">
-            <div class="highlight-chip">
-              <strong>Control plane</strong>
-              <span>Keep credentials, provider state, and operational data isolated per workspace.</span>
-            </div>
-            <div class="highlight-chip">
-              <strong>AI + RAG</strong>
-              <span>Run agentic workflows with retrieval-aware knowledge, generated actions, and reusable data.</span>
-            </div>
-            <div class="highlight-chip">
-              <strong>Voice + analytics</strong>
-              <span>Track voice sessions, workflow runs, usage patterns, and system health without jumping between tools.</span>
-            </div>
+            <span>Prompt → Workflow</span>
+            <span>Canvas builder</span>
+            <span>Run analytics</span>
+            <span>Integrations</span>
           </div>
         </section>
 
-        <aside class="hero-panel">
+        <aside class="hero-panel hero-panel-showcase">
           <div class="panel-chrome" aria-hidden="true">
             <span></span>
             <span></span>
             <span></span>
           </div>
-          <div class="dashboard-shell">
-            <div class="dashboard-header">
-              <div>
-                <h2>Workspace operations</h2>
-                <p>Illustrative metrics for the TaskyHub control plane.</p>
-              </div>
-              <span class="status-badge">Healthy</span>
-            </div>
-
-            <div class="dashboard-grid">
-              <div class="mini-stat">
-                <span class="label">Runs today</span>
-                <strong>1,248</strong>
-              </div>
-              <div class="mini-stat">
-                <span class="label">Successful runs</span>
-                <strong>98.4%</strong>
-              </div>
-              <div class="mini-stat">
-                <span class="label">AI calls</span>
-                <strong>5.2k</strong>
-              </div>
-              <div class="mini-stat">
-                <span class="label">Voice sessions</span>
-                <strong>684</strong>
-              </div>
-            </div>
-
-            <div class="trend-card">
-              <div class="trend-top">
-                <div>
-                  <div class="trend-title">Execution trend</div>
-                  <div class="trend-value">+14% week over week</div>
-                </div>
-                <div class="trend-title">sample</div>
-              </div>
-              <div class="bar-chart" aria-hidden="true">
-                <div class="bar" style="height:38%"></div>
-                <div class="bar" style="height:52%"></div>
-                <div class="bar" style="height:68%"></div>
-                <div class="bar" style="height:58%"></div>
-                <div class="bar" style="height:76%"></div>
-                <div class="bar" style="height:88%"></div>
-              </div>
-            </div>
-
-            <div class="dashboard-footer">
-              <span>Integrations: Google, OpenAI, Slack, webhooks, voice endpoints</span>
-              <span>RAG ready + workspace-aware</span>
-            </div>
+          <div class="marketing-showcase" data-marketing-showcase aria-label="TaskyHub product preview">
+            <div class="marketing-showcase-track"></div>
+            <div class="marketing-showcase-dots" role="tablist" aria-label="Preview slides"></div>
           </div>
         </aside>
+      </div>
+
+      <div class="wrap hero-highlights">
+        <div class="highlight-chip">
+          <strong>Prompt → Workflow</strong>
+          <span>Describe triggers, steps, and outcomes—pick AI-powered generation or a Non-AI step list mapped to nodes.</span>
+        </div>
+        <div class="highlight-chip">
+          <strong>Canvas + runtime</strong>
+          <span>Refine HTTP, transforms, branches, and agentic steps on the canvas, then activate with workspace context.</span>
+        </div>
+        <div class="highlight-chip">
+          <strong>Hub analytics</strong>
+          <span>Track runs, success rate, failures, and usage from the dashboard without leaving your workspace.</span>
+        </div>
       </div>
     </section>
 
@@ -129,10 +87,10 @@
       <div class="wrap">
         <div class="section-head">
           <span class="kicker">Features</span>
-          <h2>Reliable workflow operations across AI, voice, analytics, and integrations.</h2>
+          <h2>Prompt → Workflow, canvas editing, and run visibility in one product.</h2>
           <p>
-            TaskyHub focuses on the parts that matter in production: orchestration, integration control, saved data,
-            execution visibility, and role-aware operations in a developer-friendly SaaS platform.
+            TaskyHub focuses on what teams need in production: describe workflows in plain English, refine them on
+            the canvas, connect workspace-scoped integrations, and inspect execution history from the hub.
           </p>
         </div>
 
@@ -140,12 +98,24 @@
           <article class="card">
             <div class="card-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3v3M12 18v3M4 12H1M23 12h-3"></path>
+                <path d="M8 8l-2-2M18 18l-2-2M18 8l2-2M8 18l-2 2"></path>
+                <circle cx="12" cy="12" r="4"></circle>
+              </svg>
+            </div>
+            <h3>Prompt → Workflow</h3>
+            <p>Describe triggers and steps in plain English—AI-powered mode drafts agentic flows, Non-AI mode maps concrete HTTP and transform steps to nodes.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M6 6h12v12H6z"></path>
                 <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M18 9h3M3 15h3M18 15h3"></path>
               </svg>
             </div>
-            <h3>Workflow orchestration</h3>
-            <p>Run and manage multi-step workflow logic with clear execution flow and workspace context.</p>
+            <h3>Canvas orchestration</h3>
+            <p>Run and manage multi-step workflow logic on the canvas with clear execution flow and workspace context.</p>
           </article>
 
           <article class="card">
@@ -154,8 +124,8 @@
                 <path d="M12 2l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 15.8 6.8 18.3l1-5.9-4.3-4.2 5.9-.9L12 2z"></path>
               </svg>
             </div>
-            <h3>Agentic actions</h3>
-            <p>Use AI-backed steps for classification, routing, generation, and decision support inside workflows.</p>
+            <h3>Agentic AI steps</h3>
+            <p>Use AI-backed nodes for classification, routing, generation, and decision support inside workflows.</p>
           </article>
 
           <article class="card">
@@ -188,8 +158,8 @@
                 <path d="M7 15l3-3 2 2 5-6"></path>
               </svg>
             </div>
-            <h3>Runs and usage visibility</h3>
-            <p>Inspect execution history, failures, AI activity, analytics, and usage patterns from one surface.</p>
+            <h3>Hub run analytics</h3>
+            <p>Inspect execution history, success rate, failures, and usage patterns from the dashboard and runs views.</p>
           </article>
 
           <article class="card">
@@ -245,6 +215,10 @@
 
         <div class="use-case-grid">
           <article class="card">
+            <h3>Prompt → Workflow onboarding</h3>
+            <p>Describe a first automation in plain English, generate nodes on the canvas, connect providers, and activate safely per workspace.</p>
+          </article>
+          <article class="card">
             <h3>Customer workspace onboarding</h3>
             <p>Connect providers, validate workspace-scoped credentials, and safely activate automation for each customer environment.</p>
           </article>
@@ -272,55 +246,121 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section section-alt">
       <div class="wrap">
         <div class="section-head">
           <span class="kicker">Analytics</span>
-          <h2>Observability is part of the product experience.</h2>
+          <h2>The same hub dashboard your team uses every day.</h2>
           <p>
-            TaskyHub surfaces operational metrics so teams can understand what is running, where it is failing, how AI is being used, and which workspaces need attention.
+            Runs, success rate, latency, and workflow composition—scoped to each workspace with sparklines,
+            period filters, and drill-down into run history. This preview mirrors the live TaskyHub analytics view.
           </p>
         </div>
 
-        <div class="metrics-grid">
-          <article class="metric-card">
-            <span class="metric-label">Workflows executed</span>
-            <div class="metric-value">18.4k</div>
-            <div class="metric-caption">Processed across active workspaces this week.</div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-label">AI actions</span>
-            <div class="metric-value">5.2k</div>
-            <div class="metric-caption">Model-backed workflow decisions and generated steps.</div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-label">Voice sessions</span>
-            <div class="metric-value">684</div>
-            <div class="metric-caption">Illustrative voice-triggered or voice-assisted workflow sessions.</div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-label">RAG retrievals</span>
-            <div class="metric-value">11.3k</div>
-            <div class="metric-caption">Knowledge fetches used to ground assistant and workflow behavior.</div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-label">Workspaces</span>
-            <div class="metric-value">42</div>
-            <div class="metric-caption">Customer environments with isolated provider state.</div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-label">Success rate</span>
-            <div class="metric-value">98.4%</div>
-            <div class="metric-caption">End-to-end runs completed without manual retry.</div>
-          </article>
-          <article class="metric-card">
-            <span class="metric-label">Avg. run time</span>
-            <div class="metric-value">1.9s</div>
-            <div class="metric-caption">Illustrative execution latency for common workflow paths.</div>
-          </article>
+        <div class="hubAnalyticsPreview" data-analytics-preview>
+          <div class="hubAnalyticsPreviewChrome">
+            <div class="hubAnalyticsPreviewMeta">
+              <span class="hubEyebrowLabel">Workspace analytics</span>
+              <div class="hubAnalyticsPreviewTitleRow">
+                <strong>Acme Ops</strong>
+                <span class="status-badge status-badge--ok">Healthy</span>
+              </div>
+              <span class="hubAnalyticsPreviewSub muted">Last 7 days · Refreshed 2 min ago · 847 runs</span>
+            </div>
+            <div class="hubAnalyticsTabs th-theme-toggle" role="tablist" aria-label="Analytics period">
+              <button type="button" class="hubAnalyticsTab is-active" data-period="7" aria-selected="true">7 days</button>
+              <button type="button" class="hubAnalyticsTab" data-period="30" aria-selected="false">30 days</button>
+            </div>
+          </div>
+
+          <div class="kpiGrid analyticsKpiGrid">
+            <article class="kpiTile kpiTotal analyticsKpiTile">
+              <div class="analyticsKpiTopRow">
+                <div class="kpiValue" data-kpi="runs">847</div>
+                <span class="analyticsDelta analyticsDelta--up" aria-label="Up 12 percent vs prior period">+12%</span>
+              </div>
+              <svg class="analyticsSparkline" data-sparkline="runs" viewBox="0 0 128 28" aria-hidden="true"></svg>
+              <div class="analyticsKpiHead">
+                <span class="analyticsKpiIcon">▶</span>
+                <div class="kpiLabel">Total runs</div>
+              </div>
+            </article>
+            <article class="kpiTile kpiOk analyticsKpiTile">
+              <div class="analyticsKpiTopRow">
+                <div class="kpiValue" data-kpi="success">91.3%</div>
+                <span class="analyticsDelta analyticsDelta--up">+2.1%</span>
+              </div>
+              <svg class="analyticsSparkline analyticsSparkline--success" data-sparkline="success" viewBox="0 0 128 28" aria-hidden="true"></svg>
+              <div class="analyticsKpiHead">
+                <span class="analyticsKpiIcon">✓</span>
+                <div class="kpiLabel">Success rate</div>
+              </div>
+            </article>
+            <article class="kpiTile analyticsKpiTile">
+              <div class="analyticsKpiTopRow">
+                <div class="kpiValue" data-kpi="latency">2.4s</div>
+                <span class="analyticsDelta analyticsDelta--down">−0.3s</span>
+              </div>
+              <svg class="analyticsSparkline" data-sparkline="latency" viewBox="0 0 128 28" aria-hidden="true"></svg>
+              <div class="analyticsKpiHead">
+                <span class="analyticsKpiIcon">⏱</span>
+                <div class="kpiLabel">Median latency</div>
+              </div>
+            </article>
+            <article class="kpiTile kpiBad analyticsKpiTile">
+              <div class="analyticsKpiTopRow">
+                <div class="kpiValue" data-kpi="failed">74</div>
+                <span class="analyticsDelta analyticsDelta--down">−8</span>
+              </div>
+              <svg class="analyticsSparkline analyticsSparkline--danger" data-sparkline="failed" viewBox="0 0 128 28" aria-hidden="true"></svg>
+              <div class="analyticsKpiHead">
+                <span class="analyticsKpiIcon">!</span>
+                <div class="kpiLabel">Failed runs</div>
+              </div>
+            </article>
+          </div>
+
+          <div class="hubAnalyticsCharts">
+            <article class="hubAnalyticsChartCard">
+              <div class="hubAnalyticsChartHead">
+                <div>
+                  <h3>Runs per day</h3>
+                  <p class="muted">Daily executions across activated workflows</p>
+                </div>
+                <span class="trend-value">Peak Thu · 142 runs</span>
+              </div>
+              <svg class="hubAnalyticsBarChart" data-bar-chart viewBox="0 0 560 180" role="img" aria-label="Bar chart of daily runs for the last seven days"></svg>
+              <div class="hubAnalyticsBarLabels" aria-hidden="true">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+              </div>
+            </article>
+
+            <article class="hubAnalyticsChartCard hubAnalyticsChartCard--side">
+              <div class="hubAnalyticsChartHead">
+                <div>
+                  <h3>Top workflows</h3>
+                  <p class="muted">By run volume this period</p>
+                </div>
+              </div>
+              <div class="hubAnalyticsDonutRow">
+                <svg class="hubAnalyticsDonut" viewBox="0 0 120 120" role="img" aria-label="Success rate 91.3 percent">
+                  <circle cx="60" cy="60" r="46" class="hubAnalyticsDonutTrack"></circle>
+                  <circle cx="60" cy="60" r="46" class="hubAnalyticsDonutValue" data-donut-value></circle>
+                  <text x="60" y="56" class="hubAnalyticsDonutPct">91.3%</text>
+                  <text x="60" y="72" class="hubAnalyticsDonutCap">success</text>
+                </svg>
+                <ol class="hubAnalyticsWorkflowList">
+                  <li><span>Order sync</span><strong>214</strong></li>
+                  <li><span>Lead enrich</span><strong>186</strong></li>
+                  <li><span>Slack digest</span><strong>142</strong></li>
+                  <li><span>Prompt → HTTP</span><strong>98</strong></li>
+                </ol>
+              </div>
+            </article>
+          </div>
         </div>
 
-        <p class="caption">Sample metrics shown for illustration only.</p>
+        <p class="caption">Representative workspace data shown—sign in to view your own live metrics.</p>
       </div>
     </section>
 
@@ -335,6 +375,10 @@
         </div>
 
         <div class="architecture-steps">
+          <article class="arch-step">
+            <h3>Canvas + hub</h3>
+            <p>Builders use Prompt → Workflow and the canvas; operators monitor runs, analytics, and integrations from the hub.</p>
+          </article>
           <article class="arch-step">
             <h3>Web app</h3>
             <p>Operators manage workspaces, integrations, saved data, workflows, and run visibility.</p>
@@ -361,19 +405,19 @@
 
     <section class="section">
       <div class="wrap callout">
-        <span class="kicker">Get started</span>
-        <h2>Run the product, not just the marketing page.</h2>
-        <p>
-          Use the main app to configure workspaces, connect integrations, build workflows, and inspect runtime operations.
-          The site here is a lightweight public entry point into the TaskyHub platform.
-        </p>
+          <span class="kicker">Get started</span>
+          <h2>Sign in, open Prompt → Workflow, and ship from the canvas.</h2>
+          <p>
+            Use the app to describe workflows in plain English, refine nodes on the canvas, connect integrations,
+            and inspect runs from the hub. White and Blue themes match the experience on this site.
+          </p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="https://dev.taskyhub.xyz">Go to app</a>
-          <a class="btn btn-secondary" href="terms/" data-file-href="terms/index.html">Terms of Service</a>
+      <a class="btn btn-primary nav-cta" href="https://dev.taskyhub.xyz">Go to app</a>
+      <a class="btn btn-secondary" href="terms/" data-file-href="terms/index.html">Terms of Service</a>
         </div>
         <div class="callout-links">
           <span>Contact: <a href="mailto:support@taskyhub.xyz">support@taskyhub.xyz</a></span>
-          <span>Multi-tenant workflow + analytics + AI + voice + RAG</span>
+          <span>Prompt → Workflow · Canvas · Hub analytics · White &amp; Blue themes</span>
         </div>
       </div>
     </section>
@@ -382,10 +426,12 @@
   <footer class="footer">
     <div class="wrap footer-grid">
       <div>
-        <a class="brand brand-logoOnly" href="index.html" aria-label="TaskyHub home">
-          <img src="assets/logo.svg" alt="TaskyHub logo">
+        <a class="brand brand-home" href="index.html" aria-label="TaskyHub home">
+          <span class="brandLogoFrame brandLogoFrame--nav">
+            <img class="brandLogo brandLogo--nav" src="assets/logo.svg" alt="TaskyHub">
+          </span>
         </a>
-        <p>Static marketing site for the TaskyHub SaaS platform.</p>
+        <p>AI-powered Prompt → Workflow automation with canvas editing and hub analytics.</p>
       </div>
       <div>
         <div class="footer-title">Navigation</div>
@@ -406,6 +452,8 @@
     </div>
     <div class="wrap footer-bottom">© 2026 TaskyHub. All rights reserved.</div>
   </footer>
+  <script src="showcase.js"></script>
+  <script src="analytics-preview.js"></script>
   <script>
     (function () {
       if (window.location.protocol !== 'file:') return;

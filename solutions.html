@@ -1,134 +1,407 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Use Cases | TaskyHub</title>
+
+  <title>Solutions | TaskyHub</title>
+
   <meta
+
     name="description"
-    content="See how TaskyHub supports customer onboarding, support automation, data sync, AI routing, and workspace-aware operations."
+
+    content="TaskyHub solutions for customer onboarding, support automation, revenue ops, AI routing, and multi-tenant workspace operations."
+
   >
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
+
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;550;650;750;800&display=swap" rel="stylesheet">
+
+  <script src="theme.js"></script>
+
   <link rel="stylesheet" href="styles.css">
+
 </head>
+
 <body>
-  <header class="topbar">
-    <div class="wrap nav">
-      <a class="brand" href="index.html"><span class="brand-mark">TH</span><span>TaskyHub</span></a>
-      <nav class="nav-links" aria-label="Primary">
-        <a class="nav-link" href="index.html">Home</a>
-        <a class="nav-link" href="services.html">Platform</a>
-        <a class="nav-link active" href="solutions.html">Use Cases</a>
-        <a class="nav-link" href="case-studies.html">Examples</a>
-        <a class="nav-link" href="about.html">About</a>
-        <a class="btn btn-secondary" href="contact.html">Contact</a>
-      </nav>
+
+  <header class="topbar th-topbar">
+
+    <div class="wrap nav" role="navigation" aria-label="Primary">
+
+      <a class="brand brand-home" href="index.html" aria-label="TaskyHub home">
+        <span class="brandLogoFrame brandLogoFrame--nav">
+          <img class="brandLogo brandLogo--nav" src="assets/logo.svg" alt="TaskyHub">
+        </span>
+      </a>
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link" href="services.html">Platform</a>
+      <a class="nav-link active" href="solutions.html">Solutions</a>
+      <a class="nav-link" href="case-studies.html">Examples</a>
+      <a class="nav-link" href="about.html">About</a>
+      <a class="btn btn-primary nav-cta" href="https://dev.taskyhub.xyz">Go to app</a>
     </div>
   </header>
 
+
+
   <main>
+
     <section class="page-hero">
+
       <div class="wrap">
-        <span class="kicker">Use Cases</span>
-        <h1>TaskyHub supports practical, tenant-safe automation.</h1>
+
+        <span class="kicker">Solutions</span>
+
+        <h1>Automation that stays reliable per customer workspace.</h1>
+
         <p>
-          The product is designed for repeatable workflows that combine integrations, AI steps, operational data,
-          and clear workspace boundaries.
+
+          TaskyHub connects Hub operations, Canvas workflow design, and analytics so platform teams,
+
+          builders, and customer admins can ship tenant-safe automation without mixing credentials or run data.
+
         </p>
+
       </div>
+
     </section>
 
-    <section class="section">
-      <div class="wrap three-grid">
-        <article class="card">
-          <h2>Customer onboarding</h2>
-          <p>Set up credentials, collect requirements, trigger approvals, and launch workspace-specific flows.</p>
-        </article>
-        <article class="card">
-          <h2>Support and triage</h2>
-          <p>Capture incoming issues, classify them with AI, route to the right team, and keep audit trails.</p>
-        </article>
-        <article class="card">
-          <h2>Lead and revenue ops</h2>
-          <p>Sync form submissions, enrich records, update CRM systems, and trigger personalized outbound actions.</p>
-        </article>
+
+
+    <section class="section section-alt">
+
+      <div class="wrap">
+
+        <div class="section-head">
+
+          <span class="kicker">By outcome</span>
+
+          <h2>Start from the job you need done.</h2>
+
+          <p>Each solution uses the same sea-blue product shell, workspace-scoped integrations, and run trace visibility.</p>
+
+        </div>
+
+
+
+        <div class="solutions-grid">
+
+          <article class="card solutions-card" id="onboarding">
+
+            <span class="solutions-card-icon" aria-hidden="true">01</span>
+
+            <h3>Customer onboarding</h3>
+
+            <p>Connect providers, validate credentials, and activate flows without cross-tenant leakage.</p>
+
+            <ul class="list solutions-list">
+
+              <li>Workspace-scoped OAuth and API keys</li>
+
+              <li>Template and guided setup paths</li>
+
+              <li>Run verification before go-live</li>
+
+            </ul>
+      <a class="btn btn-primary solutions-card-cta" href="https://dev.taskyhub.xyz/marketplace">Explore in app</a>
+      <a class="btn btn-secondary solutions-card-cta-secondary" href="https://dev.taskyhub.xyz/automation?tab=integrations">Connect integrations</a>
+
+          </article>
+
+          <article class="card solutions-card" id="support">
+
+            <span class="solutions-card-icon" aria-hidden="true">02</span>
+
+            <h3>Support &amp; triage</h3>
+
+            <p>Classify inbound events, route by intent, and keep audit trails for every handoff.</p>
+
+            <ul class="list solutions-list">
+
+              <li>Webhook and form triggers</li>
+
+              <li>AI-assisted classification steps</li>
+
+              <li>Status-aware run history</li>
+
+            </ul>
+      <a class="btn btn-primary solutions-card-cta" href="https://dev.taskyhub.xyz/automation?tab=runs&amp;status=FAILED">Explore in app</a>
+      <a class="btn btn-secondary solutions-card-cta-secondary" href="https://dev.taskyhub.xyz/marketplace">Browse templates</a>
+
+          </article>
+
+          <article class="card solutions-card" id="revenue">
+
+            <span class="solutions-card-icon" aria-hidden="true">03</span>
+
+            <h3>Revenue &amp; lead ops</h3>
+
+            <p>Sync CRM records, enrich leads, and trigger outbound actions from one operational surface.</p>
+
+            <ul class="list solutions-list">
+
+              <li>Integration test wizard</li>
+
+              <li>Reusable saved data and endpoints</li>
+
+              <li>Analytics on failure rates</li>
+
+            </ul>
+      <a class="btn btn-primary solutions-card-cta" href="https://dev.taskyhub.xyz/analytics?solution=revenue">Explore in app</a>
+      <a class="btn btn-secondary solutions-card-cta-secondary" href="https://dev.taskyhub.xyz/automation?tab=flows">View workflows</a>
+
+          </article>
+
+          <article class="card solutions-card" id="ai">
+
+            <span class="solutions-card-icon" aria-hidden="true">04</span>
+
+            <h3>AI &amp; voice workflows</h3>
+
+            <p>Ground model steps with workspace data, RAG retrieval, and voice-ready trigger paths.</p>
+
+            <ul class="list solutions-list">
+
+              <li>Agentic steps with operational context</li>
+
+              <li>Prompt and template creation rails</li>
+
+              <li>Technical and friendly run views</li>
+
+            </ul>
+      <a class="btn btn-primary solutions-card-cta" href="https://dev.taskyhub.xyz/marketplace">Explore in app</a>
+      <a class="btn btn-secondary solutions-card-cta-secondary" href="https://dev.taskyhub.xyz/marketplace">AI templates</a>
+
+          </article>
+
+        </div>
+
       </div>
+
     </section>
 
+
+
     <section class="section">
+
+      <div class="wrap">
+
+        <div class="section-head">
+
+          <span class="kicker">How it fits together</span>
+
+          <h2>One product, three surfaces.</h2>
+
+          <p>Design in Canvas, operate in Hub, and explain value on marketing pages—all with the same theme toggle and tokens.</p>
+
+        </div>
+
+
+
+        <ol class="solutions-flow" aria-label="TaskyHub product flow">
+
+          <li class="solutions-flow-step">
+
+            <strong>Hub</strong>
+
+            <span>Dashboards, runs, integrations, billing, and workspace admin.</span>
+
+          </li>
+
+          <li class="solutions-flow-step" aria-hidden="true">→</li>
+
+          <li class="solutions-flow-step">
+
+            <strong>Canvas</strong>
+
+            <span>Visual builder with nodes, inspector, guided mode, and run trace.</span>
+
+          </li>
+
+          <li class="solutions-flow-step" aria-hidden="true">→</li>
+
+          <li class="solutions-flow-step">
+
+            <strong>Analytics</strong>
+
+            <span>Reliability KPIs, top workflows, and failure patterns per workspace.</span>
+
+          </li>
+
+        </ol>
+
+      </div>
+
+    </section>
+
+
+
+    <section class="section section-alt">
+
       <div class="wrap two-grid">
+
         <article class="card">
+
           <h2>For platform teams</h2>
+
           <ul class="list">
+
             <li>Manage customer workspaces from a central SaaS platform.</li>
+
             <li>Enforce operational rules and secure shared infrastructure.</li>
+
             <li>Keep integrations and secrets cleanly segmented.</li>
+
           </ul>
+
         </article>
+
         <article class="card">
+
           <h2>For customer admins</h2>
+
           <ul class="list">
+
             <li>Activate the providers their workspace actually uses.</li>
-            <li>Review saved data, endpoints, and workflow-related settings.</li>
+
+            <li>Review saved data, endpoints, and workflow settings.</li>
+
             <li>Test integrations without affecting other tenants.</li>
+
           </ul>
+
         </article>
+
         <article class="card">
+
           <h2>For builders</h2>
+
           <ul class="list">
+
             <li>Reuse endpoint and saved-data assets across workflows.</li>
+
             <li>Compose AI actions with operational context.</li>
+
             <li>Inspect runs and refine automations faster.</li>
+
           </ul>
+
         </article>
+
         <article class="card">
-          <h2>For operations and success teams</h2>
+
+          <h2>For operations &amp; success</h2>
+
           <ul class="list">
+
             <li>View workspace health and run outcomes.</li>
+
             <li>Spot failed integrations before customers do.</li>
+
             <li>Support multi-tenant customers without shared-state mistakes.</li>
+
           </ul>
+
         </article>
+
       </div>
+
     </section>
 
+
+
     <section class="section">
+
       <div class="wrap callout">
-        <span class="kicker" style="color:#bfdbfe;">Why this matters</span>
-        <h2 style="margin-top:0;">Automation is only useful when it stays reliable per customer workspace.</h2>
+
+        <span class="kicker">Get started</span>
+
+        <h2 style="margin-top:0;">See the platform in your workspace.</h2>
+
         <p>
-          TaskyHub focuses on correct workspace propagation, clear provider ownership, and safe auth patterns so the same platform can serve many customers without mixing their data.
+
+          Open the app to explore flows, run trace, and analytics—or contact us for a walkthrough tailored to your tenant model.
+
         </p>
+
+        <div class="cta-row" style="margin-top: 16px;">
+      <a class="btn btn-primary nav-cta" href="https://dev.taskyhub.xyz">Go to app</a>
+      <a class="btn btn-secondary" href="contact.html">Contact sales</a>
+
+        </div>
+
       </div>
+
     </section>
+
   </main>
 
+
+
   <footer class="footer">
+
     <div class="wrap footer-grid">
+
       <div>
-        <a class="brand" href="index.html"><span class="brand-mark">TH</span><span>TaskyHub</span></a>
+
+        <a class="brand brand-home" href="index.html" aria-label="TaskyHub home">
+        <span class="brandLogoFrame brandLogoFrame--nav">
+          <img class="brandLogo brandLogo--nav" src="assets/logo.svg" alt="TaskyHub">
+        </span>
+      </a>
+
         <p>Modern automation for AI-native teams and multi-tenant SaaS operations.</p>
+
       </div>
+
       <div>
+
         <div class="footer-title">Pages</div>
+
         <ul class="footer-list">
+
           <li><a href="services.html">Platform</a></li>
+
           <li><a href="case-studies.html">Examples</a></li>
+
           <li><a href="about.html">About</a></li>
+
         </ul>
+
       </div>
+
       <div>
+
         <div class="footer-title">Legal</div>
+
         <ul class="footer-list">
+
           <li><a href="privacy/">Privacy</a></li>
+
           <li><a href="terms/">Terms</a></li>
+
           <li><a href="contact.html">Contact</a></li>
+
         </ul>
+
       </div>
+
     </div>
+
     <div class="wrap footer-bottom">© 2026 TaskyHub. All rights reserved.</div>
+
   </footer>
+
 </body>
+
 </html>
+
+

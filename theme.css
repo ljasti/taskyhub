@@ -11,12 +11,14 @@
 	--font-mono: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
 	--text-xs: 0.75rem;
 	--text-sm: 0.8125rem;
-	--text-base: 0.9375rem;
-	--text-md: 1rem;
+	--text-base: 1rem;
+	--text-md: 0.9375rem;
 	--text-lg: 1.125rem;
 	--text-xl: 1.375rem;
-	--text-2xl: 1.75rem;
+	--text-2xl: 2rem;
 	--text-3xl: 2.125rem;
+	--text-display: 3rem;
+	--weight-normal: 500;
 	--weight-medium: 550;
 	--weight-semibold: 650;
 	--weight-bold: 750;
@@ -39,11 +41,11 @@
 	/* Radius */
 	--radius-xs: 6px;
 	--radius-sm: 10px;
-	--radius-md: 14px;
-	--radius-lg: 18px;
-	--radius-xl: 22px;
+	--radius-md: 12px;
+	--radius-lg: 16px;
+	--radius-xl: 20px;
 	--radius-pill: 999px;
-	--radius-biscuit: 26px;
+	--radius-biscuit: 20px;
 
 	/* Sea-blue primary scale (DESIGN.md §2.1) */
 	--color-primary-50: #edf8fb;
@@ -126,8 +128,8 @@
 	);
 
 	/* Surface elevation shadows (DESIGN.md §2.4) */
-	--shadow-raised: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(13, 93, 116, 0.06);
-	--shadow-floating: 0 4px 12px rgba(13, 93, 116, 0.1), 0 24px 48px rgba(15, 23, 42, 0.06);
+	--shadow-raised: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px rgba(13, 93, 116, 0.05);
+	--shadow-floating: 0 3px 8px rgba(13, 93, 116, 0.08), 0 14px 32px rgba(15, 23, 42, 0.05);
 
 	--color-primary: var(--color-primary-500);
 	--color-primary-strong: var(--color-primary-600);
@@ -195,9 +197,16 @@ html.theme-white,
 html.theme-light {
 	color-scheme: light;
 	/*
-	 * Darker sea-blue tints for the light shell — same hue family as brand #1596b8,
-	 * with deeper washes on page/sidebar while keeping 500 as the CTA anchor.
+	 * Modern Ocean Glass — layered sea-blue surfaces (DESIGN v1.2).
+	 * Layer 0 page mist → Layer 3 near-white cards; sidebar slightly deeper.
 	 */
+	--ocean-layer-0: #d9f1f8;
+	--ocean-layer-1: #e8f7fb;
+	--ocean-layer-2: #f4fcfe;
+	--ocean-layer-3: #fafeff;
+	--ocean-sidebar: #cfeaf3;
+	--ocean-card-border: rgba(0, 90, 120, 0.08);
+	--ocean-card-shadow: 0 2px 10px rgba(13, 93, 116, 0.06);
 	--color-primary-50: #c8e8f0;
 	--color-primary-100: #a8d8e6;
 	--color-primary-200: #78c4d8;
@@ -206,16 +215,15 @@ html.theme-light {
 	--color-primary-600: #0d6880;
 	--color-primary-700: #095266;
 	--color-primary-ink: #083f4f;
-	--surface-white-tint: color-mix(in srgb, var(--color-primary-50) 42%, #f6fbfd 58%);
-	--surface-white-elevated: color-mix(in srgb, var(--color-primary-50) 34%, #f2f9fb 66%);
-	/* §2.1 surface ladder + Phase 2 shell */
-	--color-bg-page: color-mix(in srgb, var(--color-primary-100) 92%, var(--color-primary-200) 8%);
-	--color-bg-surface: var(--surface-white-tint);
-	--color-bg-subtle: color-mix(in srgb, var(--color-primary-50) 56%, var(--color-primary-100) 44%);
-	--color-bg-elevated: var(--surface-white-elevated);
-	--color-bg-inset: color-mix(in srgb, var(--color-primary-100) 58%, var(--color-primary-50) 42%);
-	--color-bg-card: var(--surface-white-elevated);
-	--color-bg-input: color-mix(in srgb, var(--surface-white-elevated) 72%, var(--color-primary-50) 28%);
+	--surface-white-tint: var(--ocean-layer-2);
+	--surface-white-elevated: var(--ocean-layer-3);
+	--color-bg-page: var(--ocean-layer-0);
+	--color-bg-surface: var(--ocean-layer-2);
+	--color-bg-subtle: var(--ocean-layer-1);
+	--color-bg-elevated: var(--ocean-layer-3);
+	--color-bg-inset: var(--ocean-layer-1);
+	--color-bg-card: var(--ocean-layer-3);
+	--color-bg-input: color-mix(in srgb, var(--ocean-layer-3) 88%, var(--ocean-layer-1) 12%);
 	--color-primary: var(--color-primary-500);
 	--color-primary-strong: var(--color-primary-600);
 	--color-accent-warm: #f97316;
@@ -227,12 +235,12 @@ html.theme-light {
 	--color-warning-text: #b45309;
 	--color-neutral-bg: rgba(100, 116, 139, 0.12);
 	--color-neutral-text: var(--neutral-500);
-	--color-border-subtle: rgba(15, 23, 42, 0.08);
-	--color-border-default: rgba(15, 23, 42, 0.12);
+	--color-border-subtle: var(--ocean-card-border);
+	--color-border-default: rgba(0, 90, 120, 0.12);
 	--color-border-strong: rgba(11, 88, 107, 0.28);
 	--color-text-primary: var(--neutral-900);
-	--color-text-secondary: var(--neutral-600);
-	--color-text-muted: var(--neutral-500);
+	--color-text-secondary: #3d5263;
+	--color-text-muted: #52687a;
 	--color-text-link: var(--color-primary-600);
 	/* Sidebar — sea-mist rail on neutral canvas (DESIGN.md §3.1) */
 	--sidebar-border: color-mix(in srgb, var(--color-primary-500) 28%, var(--color-border-subtle) 72%);
@@ -241,27 +249,23 @@ html.theme-light {
 	--sidebar-chrome-bg: var(--surface-white-elevated);
 	--sidebar-chrome-border: color-mix(in srgb, var(--color-primary-500) 18%, var(--color-border-default) 82%);
 	--sidebar-chrome-shadow: var(--shadow-sm);
-	--surface-sidebar: color-mix(in srgb, var(--color-primary-100) 78%, var(--color-primary-200) 22%);
+	--surface-sidebar: var(--ocean-sidebar);
 	--surface-sidebar-gradient: linear-gradient(
 		180deg,
-		color-mix(in srgb, var(--color-primary-100) 88%, var(--color-primary-200) 12%) 0%,
-		color-mix(in srgb, var(--color-primary-100) 82%, var(--color-primary-200) 18%) 54%,
-		color-mix(in srgb, var(--color-primary-100) 76%, var(--color-primary-200) 24%) 100%
+		color-mix(in srgb, var(--ocean-sidebar) 92%, var(--color-primary-200) 8%) 0%,
+		var(--ocean-sidebar) 54%,
+		color-mix(in srgb, var(--ocean-sidebar) 88%, var(--color-primary-300) 12%) 100%
 	);
-	--gradient-page: linear-gradient(
-		180deg,
-		color-mix(in srgb, var(--color-primary-100) 92%, var(--color-primary-200) 8%) 0%,
-		color-mix(in srgb, var(--color-primary-100) 86%, var(--color-primary-200) 14%) 100%
-	);
+	--gradient-page: linear-gradient(180deg, var(--ocean-layer-0) 0%, var(--ocean-layer-1) 100%);
 	--gradient-hero-radial: radial-gradient(
-		ellipse 100% 72% at 4% -6%,
-		color-mix(in srgb, var(--color-primary-200) 80%, var(--color-primary-300) 20%) 0%,
-		transparent 62%
+		ellipse 90% 60% at 8% -8%,
+		color-mix(in srgb, var(--ocean-layer-1) 80%, var(--color-primary-100) 20%) 0%,
+		transparent 58%
 	);
 	--gradient-shell-accent: radial-gradient(
-		ellipse 78% 58% at 100% 2%,
-		color-mix(in srgb, var(--color-primary-300) 54%, var(--color-primary-200) 46%) 0%,
-		transparent 56%
+		ellipse 70% 50% at 100% 0%,
+		color-mix(in srgb, var(--ocean-layer-1) 70%, var(--color-primary-100) 30%) 0%,
+		transparent 52%
 	);
 	--app-shell-bg: var(--gradient-hero-radial), var(--gradient-shell-accent), var(--gradient-page);
 	--login-shell-bg: var(--app-shell-bg);
@@ -273,7 +277,7 @@ html.theme-light {
 	--login-card-text: var(--color-text-primary);
 	--login-card-text-muted: var(--color-text-secondary);
 	--login-card-border: var(--color-border-default);
-	--login-card-shadow: var(--shadow-floating);
+	--login-card-shadow: var(--shadow-raised);
 	--login-card-shadow-hover: var(--shadow-floating);
 	--login-card-border-hover: rgba(var(--primary-rgb), 0.28);
 	--login-cta-bg: var(--gradient-button-primary);
@@ -289,23 +293,19 @@ html.theme-light {
 		color-mix(in srgb, var(--color-primary-100) 62%, var(--color-primary-200) 38%) 100%
 	);
 	--logo-panel-surround-bg: linear-gradient(168deg, #2f7a8e 0%, #256878 46%, #1d5668 100%);
-	--logo-panel-radius: 36px;
+	--logo-panel-radius: 24px;
 	--logo-panel-shadow:
-		inset 0 10px 28px rgba(255, 255, 255, 0.96),
-		inset 0 -12px 24px rgba(13, 93, 116, 0.28),
-		0 2px 0 rgba(255, 255, 255, 0.55),
-		0 6px 16px rgba(13, 93, 116, 0.26),
-		0 14px 34px rgba(13, 93, 116, 0.3),
-		0 26px 56px rgba(13, 93, 116, 0.22),
-		0 10px 28px rgba(21, 150, 184, 0.28);
+		inset 0 6px 16px rgba(255, 255, 255, 0.82),
+		inset 0 -6px 12px rgba(13, 93, 116, 0.18),
+		0 2px 0 rgba(255, 255, 255, 0.42),
+		0 3px 8px rgba(13, 93, 116, 0.14),
+		0 8px 18px rgba(13, 93, 116, 0.1);
 	--logo-panel-shadow-hover:
-		inset 0 12px 32px rgba(255, 255, 255, 1),
-		inset 0 -14px 28px rgba(13, 93, 116, 0.32),
-		0 3px 0 rgba(255, 255, 255, 0.62),
-		0 8px 20px rgba(13, 93, 116, 0.3),
-		0 18px 42px rgba(13, 93, 116, 0.34),
-		0 32px 64px rgba(13, 93, 116, 0.26),
-		0 12px 32px rgba(21, 150, 184, 0.34);
+		inset 0 8px 20px rgba(255, 255, 255, 0.9),
+		inset 0 -8px 16px rgba(13, 93, 116, 0.22),
+		0 3px 0 rgba(255, 255, 255, 0.48),
+		0 5px 12px rgba(13, 93, 116, 0.16),
+		0 10px 24px rgba(13, 93, 116, 0.12);
 	--sidebar-logo-shadow: var(--logo-panel-shadow);
 	--sidebar-elevated-shadow:
 		0 0 0 1px rgba(148, 163, 184, 0.14),
@@ -320,9 +320,9 @@ html.theme-light {
 	--color-nav-active-border: color-mix(in srgb, var(--color-primary-500) 48%, transparent);
 	/* Sidebar nav — sea-blue active accent on neutral rail */
 	--sidebar-nav-text: var(--color-text-secondary);
-	--sidebar-nav-hover-bg: var(--primary-soft);
-	--sidebar-nav-active-bg: var(--primary-soft);
-	--sidebar-nav-active-border: color-mix(in srgb, var(--color-primary-500) 32%, transparent);
+	--sidebar-nav-hover-bg: color-mix(in srgb, var(--color-primary-100) 55%, var(--ocean-layer-3) 45%);
+	--sidebar-nav-active-bg: color-mix(in srgb, var(--color-primary-50) 72%, var(--ocean-layer-3) 28%);
+	--sidebar-nav-active-border: color-mix(in srgb, var(--color-primary-500) 24%, transparent);
 	--color-toggle-on-bg: var(--color-primary-500);
 	--color-toggle-on-thumb: #ffffff;
 	--color-toggle-off-bg: rgba(148, 163, 184, 0.4);
@@ -346,22 +346,21 @@ html.theme-light {
 	--shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05);
 	--shadow-md: 0 8px 22px rgba(15, 23, 42, 0.1), 0 3px 8px rgba(15, 23, 42, 0.06);
 	--shadow-lg: 0 22px 48px rgba(15, 23, 42, 0.12), 0 8px 20px rgba(15, 23, 42, 0.07);
-	--shadow-premium: 0 28px 60px rgba(15, 23, 42, 0.14), 0 10px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+	--shadow-premium: 0 14px 32px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(15, 23, 42, 0.06);
 	--surface-page: var(--color-bg-page);
 	--surface-card: var(--color-bg-card);
 	--surface-header: var(--color-bg-surface);
 	--surface-input: var(--color-bg-input);
 	--surface-canvas: color-mix(in srgb, var(--color-primary-100) 38%, var(--color-primary-50) 22%, var(--neutral-100) 40%);
 	--surface-card-gradient: linear-gradient(
-		165deg,
-		color-mix(in srgb, var(--surface-white-elevated) 88%, var(--color-primary-50) 12%) 0%,
-		color-mix(in srgb, var(--surface-white-elevated) 72%, var(--color-primary-50) 28%) 52%,
-		color-mix(in srgb, var(--surface-white-tint) 64%, var(--color-primary-100) 36%) 100%
+		180deg,
+		var(--ocean-layer-3) 0%,
+		color-mix(in srgb, var(--ocean-layer-3) 94%, var(--ocean-layer-1) 6%) 100%
 	);
 	--surface-header-gradient: linear-gradient(
 		180deg,
-		color-mix(in srgb, var(--surface-white-elevated) 82%, var(--color-primary-50) 18%) 0%,
-		color-mix(in srgb, var(--surface-white-tint) 68%, var(--color-primary-50) 32%) 100%
+		var(--ocean-layer-2) 0%,
+		color-mix(in srgb, var(--ocean-layer-2) 92%, var(--ocean-layer-1) 8%) 100%
 	);
 	--bg-surface: var(--surface-page);
 	--bg-surface-alt: color-mix(in srgb, var(--color-primary-100) 64%, var(--color-primary-200) 12%, var(--neutral-100) 24%);
@@ -478,7 +477,8 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	--blue-shell-mid: color-mix(in srgb, var(--neutral-900) 82%, var(--color-primary-600) 18%);
 	--blue-shell-rail: color-mix(in srgb, var(--neutral-900) 86%, var(--color-primary-700) 14%);
 	--blue-shell-inset: color-mix(in srgb, var(--neutral-900) 90%, var(--color-primary-700) 10%);
-	--blue-shell-card: color-mix(in srgb, var(--neutral-900) 52%, var(--color-primary-600) 48%);
+	--blue-shell-card: color-mix(in srgb, var(--neutral-900) 40%, var(--color-primary-600) 60%);
+	--blue-dark-card-border: rgba(255, 255, 255, 0.08);
 	--blue-shell-header: color-mix(in srgb, var(--neutral-900) 48%, var(--color-primary-500) 52%);
 	--blue-shell-input: color-mix(in srgb, var(--neutral-900) 64%, var(--color-primary-500) 36%);
 	--blue-shell-chrome: color-mix(in srgb, var(--neutral-900) 66%, var(--color-primary-600) 34%);
@@ -491,8 +491,8 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	--color-border-default: rgba(var(--blue-glow-rgb), 0.34);
 	--color-border-strong: rgba(var(--blue-highlight-rgb), 0.48);
 	--color-text-primary: color-mix(in srgb, var(--neutral-0) 96%, var(--color-primary-50) 4%);
-	--color-text-secondary: color-mix(in srgb, var(--color-primary-100) 72%, var(--neutral-300) 28%);
-	--color-text-muted: color-mix(in srgb, var(--color-primary-200) 38%, var(--neutral-400) 62%);
+	--color-text-secondary: color-mix(in srgb, var(--color-primary-100) 78%, var(--neutral-300) 22%);
+	--color-text-muted: color-mix(in srgb, var(--color-primary-200) 48%, var(--neutral-400) 52%);
 	--color-text-link: var(--color-primary-200);
 	--color-primary: var(--color-primary-300);
 	--color-primary-strong: var(--color-primary-200);
@@ -582,8 +582,7 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	--shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.48), 0 1px 3px rgba(13, 93, 116, 0.22);
 	--shadow-md: 0 10px 28px rgba(2, 8, 23, 0.44), 0 4px 14px rgba(13, 93, 116, 0.26);
 	--shadow-lg: 0 22px 52px rgba(2, 8, 23, 0.52), 0 8px 24px rgba(13, 93, 116, 0.3);
-	--shadow-premium: 0 28px 64px rgba(2, 8, 23, 0.58), 0 12px 30px rgba(13, 93, 116, 0.32),
-		inset 0 1px 0 rgba(var(--blue-glow-rgb), 0.14);
+	--shadow-premium: 0 16px 36px rgba(2, 8, 23, 0.42), 0 6px 16px rgba(13, 93, 116, 0.24);
 	--shadow-focus: 0 0 0 3px rgba(var(--blue-brand-rgb), 0.4);
 	--selection-bg: rgba(var(--blue-brand-rgb), 0.28);
 	--topbar-bg: var(--surface-header-gradient);
@@ -611,8 +610,8 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	--login-card-text-muted: var(--neutral-600);
 	--login-card-label: var(--neutral-700);
 	--login-card-border: rgba(148, 180, 204, 0.55);
-	--login-card-shadow: var(--shadow-premium);
-	--login-card-shadow-hover: var(--shadow-premium);
+	--login-card-shadow: var(--shadow-raised);
+	--login-card-shadow-hover: var(--shadow-floating);
 	--login-card-border-hover: rgba(219, 234, 254, 0.98);
 	--login-cta-bg: linear-gradient(135deg, var(--login-cta) 0%, #fb923c 100%);
 	--login-cta-bg-hover: linear-gradient(135deg, var(--login-cta-hover) 0%, #f97316 100%);
@@ -626,21 +625,19 @@ html.theme-dark:not([data-theme-variant-blue]) {
 		color-mix(in srgb, var(--blue-shell-chrome) 84%, var(--color-primary-500) 16%) 48%,
 		color-mix(in srgb, var(--blue-shell-card) 88%, var(--color-primary-600) 12%) 100%
 	);
-	--logo-panel-radius: 36px;
+	--logo-panel-radius: 28px;
 	--logo-panel-shadow:
-		inset 0 6px 20px rgba(var(--blue-glow-rgb), 0.1),
-		inset 0 -8px 18px rgba(4, 8, 20, 0.38),
-		0 4px 12px rgba(10, 20, 40, 0.42),
-		0 10px 28px rgba(2, 8, 23, 0.46),
-		0 22px 52px rgba(2, 8, 23, 0.36),
-		0 8px 24px rgba(var(--blue-brand-rgb), 0.18);
+		inset 0 4px 14px rgba(var(--blue-glow-rgb), 0.08),
+		inset 0 -6px 14px rgba(4, 8, 20, 0.32),
+		0 3px 10px rgba(10, 20, 40, 0.36),
+		0 8px 22px rgba(2, 8, 23, 0.38),
+		0 4px 16px rgba(var(--blue-brand-rgb), 0.14);
 	--logo-panel-shadow-hover:
-		inset 0 8px 24px rgba(var(--blue-glow-rgb), 0.14),
-		inset 0 -10px 22px rgba(4, 8, 20, 0.42),
-		0 6px 16px rgba(10, 20, 40, 0.46),
-		0 14px 36px rgba(2, 8, 23, 0.5),
-		0 28px 60px rgba(2, 8, 23, 0.4),
-		0 10px 30px rgba(var(--blue-accent-rgb), 0.24);
+		inset 0 6px 18px rgba(var(--blue-glow-rgb), 0.12),
+		inset 0 -8px 18px rgba(4, 8, 20, 0.36),
+		0 4px 12px rgba(10, 20, 40, 0.4),
+		0 12px 28px rgba(2, 8, 23, 0.42),
+		0 6px 20px rgba(var(--blue-accent-rgb), 0.18);
 	--sidebar-logo-shadow: var(--logo-panel-shadow);
 	--glass-panel-bg: var(--surface-card-gradient);
 	--glass-panel-bg-fallback: var(--bg-inset);
@@ -744,6 +741,9 @@ html.theme-light body.th-app-body {
 	background: var(--app-shell-bg);
 	background-color: var(--color-bg-page);
 	background-attachment: fixed;
+	font-size: var(--text-base);
+	font-weight: var(--weight-normal, 500);
+	line-height: 1.55;
 }
 
 /* —— Primitives —— */
@@ -1115,14 +1115,14 @@ html.theme-white .th-panel,
 html.theme-light .th-panel {
 	background: var(--surface-card-gradient, var(--glass-panel-bg));
 	border-color: rgba(71, 85, 105, 0.2);
-	box-shadow: var(--shadow-premium, var(--glass-panel-shadow));
+	box-shadow: var(--shadow-raised, var(--glass-panel-shadow));
 }
 
 html.theme-blue .th-panel,
 html.theme-dark .th-panel {
 	background: var(--surface-card-gradient, var(--glass-panel-bg));
 	border-color: rgba(var(--blue-highlight-rgb), 0.32);
-	box-shadow: var(--shadow-premium, var(--glass-panel-shadow)), inset 0 1px 0 rgba(var(--blue-glow-rgb), 0.1);
+	box-shadow: var(--shadow-raised, var(--glass-panel-shadow));
 	backdrop-filter: blur(16px) saturate(1.12);
 }
 
@@ -1138,10 +1138,10 @@ html.theme-dark .th-panel {
 .th-page-header h1,
 .th-page-header h2 {
 	margin: 0;
-	font-size: var(--text-2xl);
-	font-weight: var(--weight-bold);
+	font-size: var(--text-display, 3rem);
+	font-weight: var(--weight-bold, 750);
 	letter-spacing: var(--tracking-tight);
-	line-height: 1.25;
+	line-height: 1.12;
 	color: var(--text-heading, var(--text-primary));
 }
 
@@ -1156,6 +1156,7 @@ html.theme-blue .th-page-header h1,
 html.theme-dark .th-page-header h1,
 html.theme-blue .th-page-header h2,
 html.theme-dark .th-page-header h2 {
+	font-size: var(--text-2xl, 2rem);
 	color: var(--color-text-primary);
 }
 
@@ -1181,9 +1182,21 @@ html.theme-light .panelHeader h2 {
 
 .th-page-header .th-page-subtitle {
 	margin-top: var(--space-2);
-	font-size: var(--text-sm);
-	color: var(--text-muted);
+	font-size: var(--text-md, 0.9375rem);
+	font-weight: var(--weight-normal, 500);
+	line-height: 1.55;
+	color: var(--text-secondary, var(--text-muted));
 	max-width: 52ch;
+}
+
+html.theme-white .th-page-header .th-page-subtitle,
+html.theme-light .th-page-header .th-page-subtitle {
+	color: var(--color-text-secondary);
+}
+
+html.theme-blue .th-page-header .th-page-subtitle,
+html.theme-dark .th-page-header .th-page-subtitle {
+	color: var(--color-text-muted);
 }
 
 .th-type-display {

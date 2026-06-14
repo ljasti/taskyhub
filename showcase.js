@@ -1,11 +1,8 @@
 (function () {
 	const SLIDES = [
-		{ id: 'canvas-white', src: 'assets/showcase/canvas-white.png', alt: 'TaskyHub workflow canvas in White theme', theme: 'white' },
-		{ id: 'canvas-blue', src: 'assets/showcase/canvas-blue.png', alt: 'TaskyHub workflow canvas in Blue theme', theme: 'blue' },
-		{ id: 'dashboard-white', src: 'assets/showcase/dashboard-white.png', alt: 'TaskyHub analytics dashboard in White theme', theme: 'white' },
-		{ id: 'dashboard-blue', src: 'assets/showcase/dashboard-blue.png', alt: 'TaskyHub analytics dashboard in Blue theme', theme: 'blue' },
-		{ id: 'admin-white', src: 'assets/showcase/admin-white.png', alt: 'TaskyHub admin settings in White theme', theme: 'white' },
-		{ id: 'admin-blue', src: 'assets/showcase/admin-blue.png', alt: 'TaskyHub admin settings in Blue theme', theme: 'blue' },
+		{ id: 'canvas-white', src: 'assets/showcase/canvas-white.png', alt: 'TaskyHub workflow canvas', theme: 'white' },
+		{ id: 'dashboard-white', src: 'assets/showcase/dashboard-white.png', alt: 'TaskyHub analytics dashboard', theme: 'white' },
+		{ id: 'admin-white', src: 'assets/showcase/admin-white.png', alt: 'TaskyHub admin settings', theme: 'white' },
 	];
 
 	const INTERVAL_MS = 5000;

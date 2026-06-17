@@ -1,0 +1,66 @@
+/**
+ * TaskyHub elevation utilities — use with tokens from theme.css.
+ * See SHADOWS-AND-ELEVATION.md for usage rules.
+ */
+
+/* Level 1 — controls */
+.th-elevation-control {
+	box-shadow: var(--elevation-control);
+}
+
+.th-elevation-control:hover:not(:disabled) {
+	box-shadow: var(--elevation-control-hover, var(--elevation-control));
+}
+
+/* Level 2 — standard panels */
+.th-elevation-panel {
+	box-shadow: var(--elevation-panel-active, var(--elevation-panel));
+}
+
+.th-elevation-panel--interactive {
+	transition:
+		transform var(--transition-ui),
+		box-shadow var(--transition-ui),
+		border-color var(--transition-ui);
+}
+
+.th-elevation-panel--interactive:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--elevation-panel-hover, var(--elevation-panel-active, var(--elevation-panel)));
+}
+
+/* Level 3 — hero / showcase (max 1–2 per page) */
+.th-elevation-hero {
+	box-shadow: var(--elevation-hero-active, var(--elevation-hero));
+}
+
+/* Card base — default sea-blue panel */
+.th-card-base {
+	background: var(--card-base-bg);
+	border: var(--card-base-border);
+	border-radius: var(--radius-md, 18px);
+	box-shadow: var(--card-base-shadow);
+}
+
+.th-card-base--interactive {
+	transition:
+		transform var(--transition-ui),
+		box-shadow var(--transition-ui),
+		border-color var(--transition-ui);
+}
+
+.th-card-base--interactive:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--card-base-shadow-hover, var(--card-base-shadow));
+}
+
+/* Dark theme cards — border-first, no default shadow */
+html.theme-blue .th-card-base,
+html.theme-dark .th-card-base {
+	box-shadow: var(--card-base-shadow, none);
+}
+
+/* Flat surfaces — sidebars, nested wells (no shadow pyramid) */
+.th-surface-flat {
+	box-shadow: none;
+}

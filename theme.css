@@ -4,6 +4,7 @@
  */
 
 @import './logo-panel.css';
+@import './elevation.css';
 
 :root {
 	/* Typography */
@@ -17,12 +18,20 @@
 	--text-xl: 1.375rem;
 	--text-2xl: 2rem;
 	--text-3xl: 2.125rem;
-	--text-display: 3rem;
+	--text-display: 3.5rem;
+	--text-section: 2rem;
+	--text-page-title: 2rem;
+	--text-label: 0.875rem;
 	--weight-normal: 500;
+	--weight-body: 400;
 	--weight-medium: 550;
 	--weight-semibold: 650;
 	--weight-bold: 750;
+	--weight-heading: 700;
+	--weight-display: 800;
+	--weight-label: 600;
 	--weight-extrabold: 800;
+	--radius-cta: 12px;
 	--tracking-tight: -0.02em;
 	--tracking-wide: 0.04em;
 
@@ -31,19 +40,20 @@
 	--space-2: 8px;
 	--space-3: 12px;
 	--space-4: 16px;
-	--space-5: 20px;
-	--space-6: 24px;
-	--space-8: 32px;
+	--space-5: 24px;
+	--space-6: 32px;
+	--space-8: 40px;
 	--space-10: 40px;
+	--space-section: 48px;
 	--content-max-width: 1280px;
 	--content-max-width-marketing: 1120px;
 
-	/* Radius */
-	--radius-xs: 6px;
-	--radius-sm: 10px;
-	--radius-md: 12px;
-	--radius-lg: 16px;
-	--radius-xl: 20px;
+	/* Radius — soft hierarchy (buttons/inputs → cards → shells → dialogs) */
+	--radius-xs: 8px;
+	--radius-sm: 12px;
+	--radius-md: 18px;
+	--radius-lg: 20px;
+	--radius-xl: 24px;
 	--radius-pill: 999px;
 	--radius-biscuit: 20px;
 
@@ -71,11 +81,19 @@
 	--neutral-800: #1e293b;
 	--neutral-900: #0f172a;
 
-	/* Motion (DESIGN.md §2.7) */
-	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-	--duration-fast: 120ms;
-	--duration-normal: 180ms;
-	--duration-slow: 240ms;
+	/* Motion — unified premium timing */
+	--ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+	--duration-ui: 220ms;
+	--duration-fast: 220ms;
+	--duration-normal: 220ms;
+	--duration-slow: 280ms;
+	--transition-ui: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* Typography rhythm */
+	--line-height-body: 1.65;
+	--line-height-dense: 1.55;
+	--line-height-tight: 1.35;
 
 	/* Brand RGB — referenced by shell washes below */
 	--primary-rgb: 21, 150, 184;
@@ -104,6 +122,9 @@
 	/* Semantic status — never brand (DESIGN.md §2.1) */
 	--color-success-text: #047857;
 	--color-success-bg: rgba(5, 150, 105, 0.08);
+	--health-dot-ok: #22c55e;
+	--health-dot-bad: #ef4444;
+	--health-dot-neutral: #94a3b8;
 	--color-danger-text: #b91c1c;
 	--color-danger-bg: rgba(220, 38, 38, 0.08);
 	--color-warning-text: #b45309;
@@ -115,7 +136,7 @@
 		color-mix(in srgb, var(--color-primary-100) 76%, var(--color-primary-200) 12%, var(--neutral-100) 12%) 0%,
 		color-mix(in srgb, var(--color-primary-100) 68%, var(--color-primary-200) 18%, var(--neutral-100) 14%) 100%
 	);
-	--gradient-button-primary: linear-gradient(180deg, var(--color-primary-500) 0%, var(--color-primary-600) 100%);
+	--gradient-button-primary: var(--btn-primary-bg);
 	--gradient-hero-radial: radial-gradient(
 		ellipse 100% 72% at 4% -6%,
 		color-mix(in srgb, var(--color-primary-200) 72%, var(--color-primary-300) 28%) 0%,
@@ -127,9 +148,97 @@
 		transparent 56%
 	);
 
-	/* Surface elevation shadows (DESIGN.md §2.4) */
-	--shadow-raised: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px rgba(13, 93, 116, 0.05);
-	--shadow-floating: 0 3px 8px rgba(13, 93, 116, 0.08), 0 14px 32px rgba(15, 23, 42, 0.05);
+	/*
+	 * Premium enterprise sea-blue scale — spec v2 (control-plane light theme).
+	 * Distinct stepped surfaces; teal-navy brand; not sky/baby blue.
+	 */
+	--sea-page: #c4dce4;
+	--sea-sidebar: #b8d4de;
+	--sea-container: #e7f2f6;
+	--sea-header-top: #f7fbfc;
+	--sea-header-bottom: #edf7fa;
+	--sea-card: #f8fcfd;
+	--sea-hover: #dceef3;
+	--sea-nav-selected: #eaf6fa;
+	--sea-icon: #0e7fa3;
+	--sea-50: #f8fcfd;
+	--sea-75: #eaf6fa;
+	--sea-100: #edf7fa;
+	--sea-150: #e7f2f6;
+	--sea-200: #c4dce4;
+	--sea-250: #b8d4de;
+	--sea-300: #a8c8d4;
+	--sea-400: #1597bd;
+	--sea-500: #0e7fa3;
+	--sea-600: #0a6d8c;
+	--sea-700: #075a73;
+	--sea-800: #044b67;
+	--sea-section: #0a5f7a;
+	--sea-rgb: 14, 127, 163;
+	--sea-border: rgba(10, 90, 120, 0.12);
+	--sea-border-hover: rgba(10, 90, 120, 0.18);
+	--sea-border-soft: rgba(10, 90, 120, 0.1);
+
+	/* Photo-derived sea ladder — crest / mid / trough / abyss (ocean reference) */
+	--sea-crest: #80deea;
+	--sea-foam: #e0f7fa;
+	--sea-shallow: #c4dce4;
+	--sea-midwater: #9ecbd6;
+	--sea-trough: #7eb8c8;
+	--sea-depth: #006064;
+	--sea-abyss: #002b36;
+	--sea-shadow-rgb: 0, 43, 54;
+	--sea-shadow-deep-rgb: 4, 28, 36;
+
+	/* Depth — layered, low-opacity shadows (Linear / Stripe style) */
+	--elevation-header: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04);
+	--elevation-topbar: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.05);
+	--elevation-control: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04);
+	--elevation-control-hover: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.05);
+	--elevation-panel: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.05), 0 12px 24px rgba(0, 0, 0, 0.03);
+	--elevation-panel-hover: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.06), 0 16px 32px rgba(0, 0, 0, 0.04);
+	--elevation-hero: 0 4px 12px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.08);
+	--elevation-button: var(--elevation-control);
+	--elevation-button-primary: 0 2px 4px rgba(0, 0, 0, 0.06), 0 6px 12px rgba(0, 0, 0, 0.08);
+	--elevation-button-secondary: 0 1px 2px rgba(0, 0, 0, 0.04);
+	--elevation-logo-panel: var(--elevation-hero);
+	--elevation-analytics-card: var(--elevation-panel);
+	--elevation-analytics-card-hover: var(--elevation-panel-hover);
+	--elevation-sidebar-edge: inset -1px 0 0 rgba(var(--sea-shadow-rgb), 0.04);
+
+	/* Card surface — subtle gradient + top highlight (once per card) */
+	--card-surface-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.88));
+	--card-hero-surface-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2));
+	--card-top-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+	/* Floating overlays */
+	--overlay-backdrop-light: rgba(210, 231, 237, 0.4);
+	--overlay-backdrop-dark: rgba(8, 36, 58, 0.4);
+	--floating-blur: blur(10px);
+
+	/* Elevation — sea-blue tinted (light theme app + marketing) */
+	--elevation-panel-blue: var(--elevation-panel);
+	--elevation-panel-blue-hover: var(--elevation-panel-hover);
+	--elevation-hero-blue: var(--elevation-hero);
+
+	/* Elevation — dark theme (dialogs, dropdowns, popovers only) */
+	--elevation-control-dark: 0 1px 3px rgba(0, 0, 0, 0.25), 0 6px 16px rgba(0, 0, 0, 0.2);
+
+	/* Card base tokens */
+	--card-base-bg: var(--card-surface-gradient, var(--sea-card));
+	--card-base-border: 1px solid rgba(20, 100, 130, 0.12);
+	--card-base-shadow: var(--elevation-panel-blue), var(--card-top-highlight);
+	--card-base-shadow-hover: var(--elevation-panel-blue-hover);
+
+	/* Focus — sea-blue ring */
+	--focus-ring-color: rgba(14, 127, 163, 0.12);
+	--focus-ring-width: 4px;
+	--focus-ring-offset: 0px;
+	--focus-border-color: #0e7fa3;
+
+	/* Surface elevation shadows (legacy aliases → elevation tokens) */
+	--shadow-raised: var(--elevation-panel);
+	--shadow-floating: var(--elevation-hero);
 
 	--color-primary: var(--color-primary-500);
 	--color-primary-strong: var(--color-primary-600);
@@ -150,11 +259,11 @@
 	--danger: var(--color-danger-text);
 	--danger-soft: rgba(220, 38, 38, 0.1);
 
-	/* Shadows */
-	--shadow-sm: 0 1px 2px rgba(100, 116, 139, 0.1);
-	--shadow-md: 0 8px 24px rgba(100, 116, 139, 0.12);
-	--shadow-lg: 0 18px 48px rgba(100, 116, 139, 0.14);
-	--shadow-focus: 0 0 0 3px rgba(var(--primary-rgb), 0.28);
+	/* Shadows (legacy aliases → elevation Level 1) */
+	--shadow-sm: var(--elevation-control);
+	--shadow-md: var(--elevation-panel);
+	--shadow-lg: var(--elevation-hero);
+	--shadow-focus: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
 	--highlight: var(--primary);
 	--highlight-rgb: var(--primary-rgb);
 	--highlight-border: rgba(var(--primary-rgb), 0.45);
@@ -197,171 +306,222 @@ html.theme-white,
 html.theme-light {
 	color-scheme: light;
 	/*
-	 * Modern Ocean Glass — layered sea-blue surfaces (DESIGN v1.2).
-	 * Layer 0 page mist → Layer 3 near-white cards; sidebar slightly deeper.
+	 * Premium sea-blue shell — deeper dark-teal washes (page → sidebar → container).
 	 */
-	--ocean-layer-0: #d9f1f8;
-	--ocean-layer-1: #e8f7fb;
-	--ocean-layer-2: #f4fcfe;
-	--ocean-layer-3: #fafeff;
-	--ocean-sidebar: #cfeaf3;
-	--ocean-card-border: rgba(0, 90, 120, 0.08);
-	--ocean-card-shadow: 0 2px 10px rgba(13, 93, 116, 0.06);
-	--color-primary-50: #c8e8f0;
-	--color-primary-100: #a8d8e6;
-	--color-primary-200: #78c4d8;
-	--color-primary-300: #48adc4;
-	--color-primary-400: #2296ae;
-	--color-primary-600: #0d6880;
-	--color-primary-700: #095266;
-	--color-primary-ink: #083f4f;
+	--sea-shell-page: color-mix(in srgb, var(--sea-page) 28%, var(--sea-trough) 72%);
+	--sea-shell-base: color-mix(
+		in srgb,
+		color-mix(in srgb, var(--sea-page) 34%, var(--sea-sidebar) 66%) 42%,
+		var(--sea-trough) 58%
+	);
+	--sea-shell-mid: color-mix(in srgb, var(--sea-container) 28%, var(--sea-trough) 72%);
+	--sea-shell-container: color-mix(in srgb, var(--sea-container) 30%, var(--sea-trough) 70%);
+	--sea-shell-rail: color-mix(in srgb, var(--sea-sidebar) 36%, var(--sea-trough) 64%);
+	--sea-shell-inset: color-mix(in srgb, var(--sea-hover) 34%, var(--sea-trough) 66%);
+	--sea-shell-chrome: color-mix(in srgb, var(--sea-header-bottom) 32%, var(--sea-trough) 68%);
+	--sea-shell-card: var(--sea-card);
+	--sea-shell-card-alt: var(--sea-card);
+	--sea-shell-input: #ffffff;
+	--ocean-layer-0: var(--sea-shell-page);
+	--ocean-layer-1: var(--sea-shell-mid);
+	--ocean-layer-2: var(--sea-shell-chrome);
+	--ocean-layer-3: var(--sea-shell-card);
+	--ocean-sidebar: var(--sea-shell-rail);
+	--ocean-card-border: rgba(20, 100, 130, 0.12);
+	--ocean-card-shadow: var(--elevation-panel-blue);
+	--elevation-control: 0 1px 2px rgba(var(--sea-shadow-rgb), 0.04), 0 4px 8px rgba(var(--sea-shadow-deep-rgb), 0.04);
+	--elevation-control-hover: 0 1px 2px rgba(var(--sea-shadow-rgb), 0.05), 0 4px 10px rgba(var(--sea-shadow-deep-rgb), 0.05);
+	--elevation-panel: 0 1px 2px rgba(var(--sea-shadow-rgb), 0.04), 0 4px 12px rgba(var(--sea-shadow-deep-rgb), 0.05), 0 12px 24px rgba(var(--sea-shadow-deep-rgb), 0.03);
+	--elevation-panel-hover: 0 1px 2px rgba(var(--sea-shadow-rgb), 0.05), 0 6px 16px rgba(var(--sea-shadow-deep-rgb), 0.06), 0 16px 32px rgba(var(--sea-shadow-deep-rgb), 0.04);
+	--elevation-hero: 0 4px 12px rgba(var(--sea-shadow-rgb), 0.06), 0 12px 32px rgba(var(--sea-shadow-deep-rgb), 0.08);
+	--elevation-panel-blue: var(--elevation-panel);
+	--elevation-panel-blue-hover: var(--elevation-panel-hover);
+	--elevation-hero-blue: var(--elevation-hero);
+	--elevation-analytics-card: var(--elevation-panel);
+	--elevation-analytics-card-hover: var(--elevation-panel-hover);
+	--elevation-panel-active: var(--elevation-panel-blue);
+	--elevation-panel-hover: var(--elevation-panel-blue-hover);
+	--elevation-hero-active: var(--elevation-hero-blue);
+	--card-base-bg: var(--card-surface-gradient, var(--sea-shell-card));
+	--card-base-border: 1px solid rgba(20, 100, 130, 0.12);
+	--card-base-shadow: var(--elevation-analytics-card), var(--card-top-highlight);
+	--card-base-shadow-hover: var(--elevation-analytics-card-hover);
+	--card-analytics-bg: linear-gradient(
+		180deg,
+		rgba(255, 255, 255, 0.95) 0%,
+		color-mix(in srgb, rgba(255, 255, 255, 0.88) 72%, var(--sea-card) 28%) 100%
+	);
+	--card-analytics-shadow: var(--elevation-analytics-card), var(--card-top-highlight);
+	--card-analytics-shadow-hover: var(--elevation-analytics-card-hover);
+	--btn-primary-bg: linear-gradient(180deg, #21a6cf 0%, #0e7fa3 100%);
+	--btn-primary-bg-hover: linear-gradient(
+		180deg,
+		color-mix(in srgb, #21a6cf 95%, #000000 5%) 0%,
+		color-mix(in srgb, #0e7fa3 95%, #000000 5%) 100%
+	);
+	--btn-primary-border: 1px solid rgba(255, 255, 255, 0.18);
+	--btn-primary-shadow:
+		var(--elevation-button-primary), inset 0 1px 2px rgba(255, 255, 255, 0.35),
+		inset 0 -2px 4px rgba(0, 0, 0, 0.08);
+	--btn-secondary-bg: var(--sea-card);
+	--btn-secondary-border: 1px solid rgba(20, 100, 130, 0.12);
+	--btn-secondary-shadow: var(--elevation-button-secondary);
+	--color-primary-500: var(--sea-500);
+	--color-primary-600: var(--sea-600);
+	--color-primary-700: var(--sea-700);
+	--color-primary-50: var(--sea-header-top);
+	--color-primary-100: var(--sea-container);
+	--color-primary-200: color-mix(in srgb, var(--sea-sidebar) 55%, var(--sea-page) 45%);
+	--color-primary-300: var(--sea-300);
+	--color-primary-400: var(--sea-400);
+	--color-primary-ink: var(--sea-800);
 	--surface-white-tint: var(--ocean-layer-2);
 	--surface-white-elevated: var(--ocean-layer-3);
-	--color-bg-page: var(--ocean-layer-0);
-	--color-bg-surface: var(--ocean-layer-2);
-	--color-bg-subtle: var(--ocean-layer-1);
-	--color-bg-elevated: var(--ocean-layer-3);
-	--color-bg-inset: var(--ocean-layer-1);
-	--color-bg-card: var(--ocean-layer-3);
-	--color-bg-input: color-mix(in srgb, var(--ocean-layer-3) 88%, var(--ocean-layer-1) 12%);
+	--color-bg-page: var(--sea-shell-page);
+	--color-bg-surface: var(--sea-shell-chrome);
+	--color-bg-subtle: var(--sea-shell-mid);
+	--color-bg-elevated: var(--sea-shell-card);
+	--color-bg-inset: var(--sea-shell-inset);
+	--color-bg-card: var(--sea-shell-card);
+	--color-bg-input: var(--sea-shell-input);
 	--color-primary: var(--color-primary-500);
 	--color-primary-strong: var(--color-primary-600);
 	--color-accent-warm: #f97316;
 	--color-success-bg: rgba(5, 150, 105, 0.08);
 	--color-success-text: #047857;
+	--health-dot-ok: #22c55e;
+	--health-dot-bad: #ef4444;
+	--health-dot-neutral: #94a3b8;
 	--color-danger-bg: rgba(220, 38, 38, 0.08);
 	--color-danger-text: #b91c1c;
 	--color-warning-bg: rgba(217, 119, 6, 0.08);
 	--color-warning-text: #b45309;
 	--color-neutral-bg: rgba(100, 116, 139, 0.12);
 	--color-neutral-text: var(--neutral-500);
-	--color-border-subtle: var(--ocean-card-border);
-	--color-border-default: rgba(0, 90, 120, 0.12);
-	--color-border-strong: rgba(11, 88, 107, 0.28);
-	--color-text-primary: var(--neutral-900);
-	--color-text-secondary: #3d5263;
-	--color-text-muted: #52687a;
+	--color-border-subtle: rgba(20, 100, 130, 0.12);
+	--color-border-default: rgba(20, 100, 130, 0.16);
+	--color-border-strong: rgba(20, 100, 130, 0.22);
+	--color-text-primary: #355a6b;
+	--color-text-secondary: #5d7d8c;
+	--color-text-muted: #7a97a4;
+	--color-text-section: var(--sea-section);
 	--color-text-link: var(--color-primary-600);
-	/* Sidebar — sea-mist rail on neutral canvas (DESIGN.md §3.1) */
-	--sidebar-border: color-mix(in srgb, var(--color-primary-500) 28%, var(--color-border-subtle) 72%);
+	/* Sidebar — deeper sea rail with crisp nav states */
+	--sidebar-border: rgba(20, 100, 130, 0.14);
 	--sidebar-text: var(--color-text-secondary);
 	--sidebar-text-muted: var(--color-text-muted);
 	--sidebar-chrome-bg: var(--surface-white-elevated);
-	--sidebar-chrome-border: color-mix(in srgb, var(--color-primary-500) 18%, var(--color-border-default) 82%);
-	--sidebar-chrome-shadow: var(--shadow-sm);
+	--sidebar-chrome-border: rgba(10, 90, 120, 0.28);
+	--sidebar-chrome-shadow: none;
 	--surface-sidebar: var(--ocean-sidebar);
 	--surface-sidebar-gradient: linear-gradient(
 		180deg,
-		color-mix(in srgb, var(--ocean-sidebar) 92%, var(--color-primary-200) 8%) 0%,
-		var(--ocean-sidebar) 54%,
-		color-mix(in srgb, var(--ocean-sidebar) 88%, var(--color-primary-300) 12%) 100%
+		color-mix(in srgb, var(--sea-sidebar) 44%, var(--sea-midwater) 56%) 0%,
+		color-mix(in srgb, var(--sea-sidebar) 32%, var(--sea-trough) 68%) 46%,
+		color-mix(in srgb, var(--sea-trough) 84%, var(--sea-sidebar) 16%) 100%
 	);
-	--gradient-page: linear-gradient(180deg, var(--ocean-layer-0) 0%, var(--ocean-layer-1) 100%);
-	--gradient-hero-radial: radial-gradient(
-		ellipse 90% 60% at 8% -8%,
-		color-mix(in srgb, var(--ocean-layer-1) 80%, var(--color-primary-100) 20%) 0%,
-		transparent 58%
+	--surface-container-gradient: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--sea-container) 26%, var(--sea-trough) 74%) 0%,
+		color-mix(in srgb, var(--sea-container) 38%, var(--sea-trough) 62%) 100%
 	);
-	--gradient-shell-accent: radial-gradient(
-		ellipse 70% 50% at 100% 0%,
-		color-mix(in srgb, var(--ocean-layer-1) 70%, var(--color-primary-100) 30%) 0%,
-		transparent 52%
+	--sea-footer-gradient: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--sea-hover) 48%, var(--sea-trough) 52%) 0%,
+		color-mix(in srgb, var(--sea-trough) 72%, var(--sea-midwater) 28%) 100%
 	);
-	--app-shell-bg: var(--gradient-hero-radial), var(--gradient-shell-accent), var(--gradient-page);
+	--gradient-page: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--sea-page) 28%, var(--sea-midwater) 72%) 0%,
+		color-mix(in srgb, var(--sea-page) 32%, var(--sea-trough) 68%) 50%,
+		color-mix(in srgb, var(--sea-trough) 76%, var(--sea-page) 24%) 100%
+	);
+	--gradient-hero-radial: none;
+	--gradient-shell-accent: none;
+	--app-shell-bg: var(--gradient-page);
 	--login-shell-bg: var(--app-shell-bg);
-	--login-card-bg: linear-gradient(
-		168deg,
-		color-mix(in srgb, var(--surface-white-elevated) 88%, var(--color-primary-50) 12%) 0%,
-		color-mix(in srgb, var(--color-primary-50) 72%, var(--color-primary-100) 28%) 100%
-	);
+	--login-card-bg: var(--sea-card);
 	--login-card-text: var(--color-text-primary);
 	--login-card-text-muted: var(--color-text-secondary);
-	--login-card-border: var(--color-border-default);
-	--login-card-shadow: var(--shadow-raised);
-	--login-card-shadow-hover: var(--shadow-floating);
-	--login-card-border-hover: rgba(var(--primary-rgb), 0.28);
-	--login-cta-bg: var(--gradient-button-primary);
-	--login-cta-bg-hover: linear-gradient(180deg, var(--color-primary-600) 0%, var(--color-primary-700) 100%);
-	--login-cta-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 10px 22px rgba(var(--primary-rgb), 0.28);
-	--login-cta-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.1), 0 14px 28px rgba(var(--primary-rgb), 0.34);
-	--login-motion-duration: var(--duration-normal);
-	/* Logo panel — sea-tinted convex lens (matches blue-theme depth language) */
+	--login-card-border: rgba(20, 100, 130, 0.14);
+	--login-card-shadow: var(--elevation-panel-blue);
+	--login-card-shadow-hover: var(--elevation-panel-blue-hover);
+	--login-hero-shadow: var(--elevation-hero-blue);
+	--login-card-border-hover: rgba(20, 100, 130, 0.2);
+	--login-cta-bg: var(--color-primary-500);
+	--login-cta-bg-hover: var(--color-primary-600);
+	--login-cta-shadow: var(--elevation-button);
+	--login-cta-shadow-hover: var(--elevation-button);
+	--login-motion-duration: var(--duration-ui);
+	/* Logo panel — soft convex biscuit (same radius family as shells) */
 	--logo-panel-bg: linear-gradient(
-		168deg,
-		color-mix(in srgb, #ffffff 58%, var(--color-primary-50) 42%) 0%,
-		color-mix(in srgb, var(--color-primary-50) 78%, var(--color-primary-100) 22%) 52%,
-		color-mix(in srgb, var(--color-primary-100) 62%, var(--color-primary-200) 38%) 100%
+		180deg,
+		color-mix(in srgb, rgba(255, 255, 255, 0.55) 78%, var(--sea-sidebar) 22%) 0%,
+		color-mix(in srgb, rgba(255, 255, 255, 0.2) 68%, var(--sea-trough) 32%) 100%
 	);
-	--logo-panel-surround-bg: linear-gradient(168deg, #2f7a8e 0%, #256878 46%, #1d5668 100%);
-	--logo-panel-radius: 24px;
+	--logo-panel-border: 1px solid rgba(255, 255, 255, 0.48);
 	--logo-panel-shadow:
-		inset 0 6px 16px rgba(255, 255, 255, 0.82),
-		inset 0 -6px 12px rgba(13, 93, 116, 0.18),
-		0 2px 0 rgba(255, 255, 255, 0.42),
-		0 3px 8px rgba(13, 93, 116, 0.14),
-		0 8px 18px rgba(13, 93, 116, 0.1);
+		var(--elevation-hero-blue), var(--card-top-highlight),
+		inset 0 -4px 8px rgba(0, 96, 100, 0.08);
 	--logo-panel-shadow-hover:
-		inset 0 8px 20px rgba(255, 255, 255, 0.9),
-		inset 0 -8px 16px rgba(13, 93, 116, 0.22),
-		0 3px 0 rgba(255, 255, 255, 0.48),
-		0 5px 12px rgba(13, 93, 116, 0.16),
-		0 10px 24px rgba(13, 93, 116, 0.12);
+		0 4px 12px rgba(var(--sea-shadow-rgb), 0.07), 0 14px 36px rgba(var(--sea-shadow-deep-rgb), 0.09),
+		var(--card-top-highlight), inset 0 -4px 8px rgba(0, 96, 100, 0.1);
+	--logo-panel-surround-bg: linear-gradient(168deg, #0a6b7a 0%, #075a73 46%, #044b67 100%);
+	--logo-panel-radius: var(--radius-lg);
 	--sidebar-logo-shadow: var(--logo-panel-shadow);
-	--sidebar-elevated-shadow:
-		0 0 0 1px rgba(148, 163, 184, 0.14),
-		0 4px 10px rgba(13, 93, 116, 0.1),
-		0 14px 32px rgba(13, 93, 116, 0.14),
-		0 28px 56px rgba(21, 150, 184, 0.16);
-	--surface-inset: color-mix(in srgb, var(--color-primary-100) 48%, var(--color-primary-50) 32%, var(--neutral-100) 20%);
-	/* Shell nav (tabs, chrome) — dark text on light surfaces */
+	--sidebar-elevated-shadow: none;
+	--surface-inset: var(--sea-hover);
+	/* Shell nav (tabs, chrome) */
 	--color-nav-text: var(--color-primary-600);
-	--color-nav-hover-bg: var(--primary-soft);
-	--color-nav-active-bg: var(--primary-soft-strong);
-	--color-nav-active-border: color-mix(in srgb, var(--color-primary-500) 48%, transparent);
-	/* Sidebar nav — sea-blue active accent on neutral rail */
+	--color-nav-hover-bg: color-mix(in srgb, var(--sea-hover) 48%, var(--sea-trough) 52%);
+	--color-nav-active-bg: color-mix(in srgb, var(--sea-nav-selected) 42%, var(--sea-midwater) 58%);
+	--color-nav-active-border: var(--color-primary-500);
+	/* Sidebar nav — enterprise rail states */
 	--sidebar-nav-text: var(--color-text-secondary);
-	--sidebar-nav-hover-bg: color-mix(in srgb, var(--color-primary-100) 55%, var(--ocean-layer-3) 45%);
-	--sidebar-nav-active-bg: color-mix(in srgb, var(--color-primary-50) 72%, var(--ocean-layer-3) 28%);
-	--sidebar-nav-active-border: color-mix(in srgb, var(--color-primary-500) 24%, transparent);
+	--sidebar-nav-hover-bg: color-mix(in srgb, rgba(255, 255, 255, 0.42) 38%, var(--sea-midwater) 62%);
+	--sidebar-nav-active-bg: color-mix(in srgb, var(--sea-nav-selected) 38%, var(--sea-midwater) 62%);
+	--sidebar-nav-active-border: var(--color-primary-500);
+	--sidebar-nav-icon-color: var(--sea-icon);
 	--color-toggle-on-bg: var(--color-primary-500);
 	--color-toggle-on-thumb: #ffffff;
 	--color-toggle-off-bg: rgba(148, 163, 184, 0.4);
 	--color-toggle-off-thumb: #ffffff;
 	--primary: var(--color-primary-500);
 	--primary-hover: var(--color-primary-600);
-	--primary-rgb: 21, 150, 184;
-	--primary-soft: rgba(var(--primary-rgb), 0.26);
-	--primary-soft-strong: rgba(var(--primary-rgb), 0.38);
-	--accent: var(--color-primary-400);
-	--accent-rgb: 42, 150, 173;
+	--primary-rgb: 14, 127, 163;
+	--primary-soft: rgba(var(--primary-rgb), 0.14);
+	--primary-soft-strong: rgba(var(--primary-rgb), 0.22);
+	--accent: var(--sea-400);
+	--accent-rgb: 21, 151, 189;
 	--highlight: var(--color-primary-500);
 	--highlight-rgb: var(--primary-rgb);
-	--highlight-border: rgba(21, 150, 184, 0.55);
-	--highlight-ring: 0 0 0 3px rgba(21, 150, 184, 0.35);
-	--highlight-width: 2px;
-	--shadow-focus: 0 0 0 3px rgba(21, 150, 184, 0.35);
-	--selection-bg: rgba(21, 150, 184, 0.12);
-	--row-selected-bg: rgba(21, 150, 184, 0.1);
-	--row-selected-border: rgba(15, 113, 137, 0.72);
-	--shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05);
-	--shadow-md: 0 8px 22px rgba(15, 23, 42, 0.1), 0 3px 8px rgba(15, 23, 42, 0.06);
-	--shadow-lg: 0 22px 48px rgba(15, 23, 42, 0.12), 0 8px 20px rgba(15, 23, 42, 0.07);
-	--shadow-premium: 0 14px 32px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(15, 23, 42, 0.06);
+	--highlight-border: var(--sea-border-hover);
+	--highlight-ring: 0 0 0 4px rgba(14, 127, 163, 0.12);
+	--highlight-width: 4px;
+	--shadow-focus: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+	--selection-bg: rgba(14, 127, 163, 0.14);
+	--row-selected-bg: rgba(14, 127, 163, 0.1);
+	--row-selected-border: rgba(14, 127, 163, 0.55);
+	--shadow-sm: var(--elevation-control);
+	--shadow-md: var(--elevation-panel-blue);
+	--shadow-lg: var(--elevation-hero-blue);
+	--shadow-premium: var(--elevation-panel-blue);
+	--shadow-raised: var(--elevation-panel-blue);
+	--shadow-floating: var(--elevation-hero-blue);
 	--surface-page: var(--color-bg-page);
+	--surface-container: var(--sea-shell-container);
 	--surface-card: var(--color-bg-card);
-	--surface-header: var(--color-bg-surface);
+	--surface-header: var(--sea-header-bottom);
 	--surface-input: var(--color-bg-input);
-	--surface-canvas: color-mix(in srgb, var(--color-primary-100) 38%, var(--color-primary-50) 22%, var(--neutral-100) 40%);
-	--surface-card-gradient: linear-gradient(
-		180deg,
-		var(--ocean-layer-3) 0%,
-		color-mix(in srgb, var(--ocean-layer-3) 94%, var(--ocean-layer-1) 6%) 100%
-	);
+	--surface-canvas: var(--sea-shell-container);
+	--surface-card-gradient: var(--card-analytics-bg);
 	--surface-header-gradient: linear-gradient(
 		180deg,
-		var(--ocean-layer-2) 0%,
-		color-mix(in srgb, var(--ocean-layer-2) 92%, var(--ocean-layer-1) 8%) 100%
+		color-mix(in srgb, var(--sea-header-top) 42%, var(--sea-page) 58%) 0%,
+		color-mix(in srgb, var(--sea-header-bottom) 38%, var(--sea-trough) 62%) 100%
 	);
+	--topbar-border: 1px solid rgba(10, 90, 120, 0.26);
+	--topbar-shadow: var(--elevation-topbar);
 	--bg-surface: var(--surface-page);
 	--bg-surface-alt: color-mix(in srgb, var(--color-primary-100) 64%, var(--color-primary-200) 12%, var(--neutral-100) 24%);
 	--bg-canvas: var(--surface-canvas, var(--color-bg-surface));
@@ -371,9 +531,10 @@ html.theme-light {
 	--chrome-surface: var(--surface-header);
 	--border-subtle: var(--color-border-subtle, rgba(15, 23, 42, 0.08));
 	--border-strong: var(--color-border-strong, rgba(15, 23, 42, 0.14));
-	--text-primary: var(--color-text-primary, #0f172a);
-	--text-secondary: var(--color-text-secondary, #475569);
-	--text-muted: var(--color-text-muted, #64748b);
+	--text-primary: var(--color-text-primary, #355a6b);
+	--text-secondary: var(--color-text-secondary, #5d7d8c);
+	--text-muted: var(--color-text-muted, #7a97a4);
+	--text-section: var(--color-text-section, #0a5f7a);
 	--text-heading: var(--color-primary-ink);
 	--topbar-bg: var(--surface-header-gradient);
 	--sidebar-bg: var(--surface-sidebar-gradient);
@@ -382,7 +543,7 @@ html.theme-light {
 	--glass-panel-bg: var(--surface-card);
 	--glass-panel-bg-fallback: var(--surface-inset);
 	--glass-panel-border: var(--border-subtle);
-	--glass-panel-shadow: var(--shadow-premium, var(--shadow-lg));
+	--glass-panel-shadow: var(--elevation-panel-blue);
 	--nav-text: var(--color-nav-text);
 	--nav-hover-bg: var(--color-nav-hover-bg);
 	--nav-active-bg: var(--color-nav-active-bg);
@@ -396,7 +557,7 @@ html.theme-light {
 	--table-row-border: var(--border-subtle);
 	--rf-node-bg: #ffffff;
 	--rf-node-border: var(--border-subtle);
-	--rf-node-shadow: var(--shadow-md);
+	--rf-node-shadow: var(--elevation-control);
 	--status-ok-bg: rgba(5, 150, 105, 0.12);
 	--status-ok-border: rgba(5, 150, 105, 0.35);
 	--status-ok-text: var(--text-primary);
@@ -413,7 +574,7 @@ html.theme-light {
 	--th-tooltip-bg-gradient: linear-gradient(165deg, #f4fbfd 0%, #e2f5f9 48%, #cfeef4 100%);
 	--th-tooltip-text: var(--color-primary-700, #0d5d74);
 	--th-tooltip-border: rgba(21, 150, 184, 0.48);
-	--th-tooltip-shadow: 0 10px 28px rgba(13, 93, 116, 0.2), 0 0 0 1px rgba(21, 150, 184, 0.14);
+	--th-tooltip-shadow: var(--elevation-panel-blue), 0 0 0 1px rgba(20, 100, 130, 0.12);
 	--th-tooltip-highlight: rgba(255, 255, 255, 0.72);
 	--th-tooltip-accent: rgba(21, 150, 184, 0.55);
 	--kpi-bottom: rgba(255, 255, 255, 0.9);
@@ -511,7 +672,7 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	--sidebar-nav-active-border: color-mix(in srgb, var(--color-primary-300) 52%, transparent);
 	--sidebar-chrome-bg: color-mix(in srgb, var(--blue-shell-chrome) 92%, var(--color-primary-600) 8%);
 	--sidebar-chrome-border: rgba(var(--blue-highlight-rgb), 0.22);
-	--sidebar-chrome-shadow: 0 8px 24px rgba(2, 8, 23, 0.35);
+	--sidebar-chrome-shadow: none;
 	--surface-page: var(--color-bg-page);
 	--surface-sidebar: var(--blue-shell-rail);
 	--surface-inset: var(--blue-shell-inset);
@@ -576,14 +737,25 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	);
 	--th-tooltip-text: var(--color-text-primary);
 	--th-tooltip-border: rgba(var(--blue-highlight-rgb), 0.42);
-	--th-tooltip-shadow: 0 12px 32px rgba(2, 8, 23, 0.48), 0 0 0 1px rgba(var(--blue-brand-rgb), 0.2);
+	--th-tooltip-shadow: var(--elevation-control-dark), 0 0 0 1px rgba(var(--blue-brand-rgb), 0.2);
 	--th-tooltip-highlight: rgba(var(--blue-glow-rgb), 0.12);
 	--th-tooltip-accent: rgba(var(--blue-accent-rgb), 0.68);
-	--shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.48), 0 1px 3px rgba(13, 93, 116, 0.22);
-	--shadow-md: 0 10px 28px rgba(2, 8, 23, 0.44), 0 4px 14px rgba(13, 93, 116, 0.26);
-	--shadow-lg: 0 22px 52px rgba(2, 8, 23, 0.52), 0 8px 24px rgba(13, 93, 116, 0.3);
-	--shadow-premium: 0 16px 36px rgba(2, 8, 23, 0.42), 0 6px 16px rgba(13, 93, 116, 0.24);
-	--shadow-focus: 0 0 0 3px rgba(var(--blue-brand-rgb), 0.4);
+	--elevation-control: var(--elevation-control-dark);
+	--elevation-panel: none;
+	--elevation-panel-active: none;
+	--elevation-hero: var(--elevation-control-dark);
+	--elevation-hero-active: var(--elevation-control-dark);
+	--card-base-bg: #0e3852;
+	--card-base-border: 1px solid rgba(255, 255, 255, 0.08);
+	--card-base-shadow: none;
+	--card-base-shadow-hover: none;
+	--shadow-sm: var(--elevation-control-dark);
+	--shadow-md: var(--elevation-control-dark);
+	--shadow-lg: var(--elevation-control-dark);
+	--shadow-premium: var(--elevation-control-dark);
+	--shadow-raised: none;
+	--shadow-floating: var(--elevation-control-dark);
+	--shadow-focus: 0 0 0 var(--focus-ring-width) rgba(var(--blue-brand-rgb), 0.45);
 	--selection-bg: rgba(var(--blue-brand-rgb), 0.28);
 	--topbar-bg: var(--surface-header-gradient);
 	--sidebar-bg: var(--surface-sidebar-gradient);
@@ -610,39 +782,35 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	--login-card-text-muted: var(--neutral-600);
 	--login-card-label: var(--neutral-700);
 	--login-card-border: rgba(148, 180, 204, 0.55);
-	--login-card-shadow: var(--shadow-raised);
-	--login-card-shadow-hover: var(--shadow-floating);
+	--login-card-shadow: var(--elevation-control-dark);
+	--login-card-shadow-hover: var(--elevation-control-dark);
+	--login-hero-shadow: var(--elevation-control-dark);
 	--login-card-border-hover: rgba(219, 234, 254, 0.98);
 	--login-cta-bg: linear-gradient(135deg, var(--login-cta) 0%, #fb923c 100%);
 	--login-cta-bg-hover: linear-gradient(135deg, var(--login-cta-hover) 0%, #f97316 100%);
 	--login-cta-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 12px 28px rgba(var(--login-cta-rgb), 0.44);
 	--login-cta-shadow-hover: 0 3px 6px rgba(0, 0, 0, 0.16), 0 16px 32px rgba(var(--login-cta-rgb), 0.5);
 	--login-motion-duration: var(--duration-normal);
-	/* Logo panel — sea-tinted convex card on navy rail */
+	/* Logo panel — sea-lit convex on navy rail (crest highlight + trough depth) */
 	--logo-panel-bg: linear-gradient(
 		168deg,
-		color-mix(in srgb, var(--blue-shell-chrome) 72%, var(--color-primary-400) 28%) 0%,
-		color-mix(in srgb, var(--blue-shell-chrome) 84%, var(--color-primary-500) 16%) 48%,
-		color-mix(in srgb, var(--blue-shell-card) 88%, var(--color-primary-600) 12%) 100%
+		color-mix(in srgb, var(--blue-shell-chrome) 58%, var(--color-primary-300) 42%) 0%,
+		color-mix(in srgb, var(--blue-shell-chrome) 72%, var(--color-primary-400) 28%) 42%,
+		color-mix(in srgb, var(--blue-shell-card) 78%, var(--color-primary-600) 22%) 100%
 	);
-	--logo-panel-radius: 28px;
+	--logo-panel-border: 1px solid rgba(255, 255, 255, 0.2);
+	--logo-panel-radius: var(--radius-lg);
 	--logo-panel-shadow:
-		inset 0 4px 14px rgba(var(--blue-glow-rgb), 0.08),
-		inset 0 -6px 14px rgba(4, 8, 20, 0.32),
-		0 3px 10px rgba(10, 20, 40, 0.36),
-		0 8px 22px rgba(2, 8, 23, 0.38),
-		0 4px 16px rgba(var(--blue-brand-rgb), 0.14);
+		0 5px 16px rgba(0, 0, 0, 0.34), 0 14px 32px rgba(var(--sea-shadow-deep-rgb), 0.46),
+		inset 0 2px 4px rgba(255, 255, 255, 0.26), inset 0 -3px 6px rgba(0, 0, 0, 0.34);
 	--logo-panel-shadow-hover:
-		inset 0 6px 18px rgba(var(--blue-glow-rgb), 0.12),
-		inset 0 -8px 18px rgba(4, 8, 20, 0.36),
-		0 4px 12px rgba(10, 20, 40, 0.4),
-		0 12px 28px rgba(2, 8, 23, 0.42),
-		0 6px 20px rgba(var(--blue-accent-rgb), 0.18);
+		0 8px 22px rgba(0, 0, 0, 0.38), 0 18px 38px rgba(var(--sea-shadow-deep-rgb), 0.52),
+		inset 0 2px 4px rgba(255, 255, 255, 0.3), inset 0 -3px 6px rgba(0, 0, 0, 0.36);
 	--sidebar-logo-shadow: var(--logo-panel-shadow);
 	--glass-panel-bg: var(--surface-card-gradient);
 	--glass-panel-bg-fallback: var(--bg-inset);
 	--glass-panel-border: var(--border-subtle);
-	--glass-panel-shadow: var(--shadow-premium);
+	--glass-panel-shadow: none;
 	--nav-text: var(--text-primary);
 	--color-nav-hover-bg: rgba(var(--neutral-0), 0.1);
 	--color-nav-active-bg: var(--primary-soft-strong);
@@ -661,7 +829,7 @@ html.theme-dark:not([data-theme-variant-blue]) {
 	--row-selected-border: var(--color-primary-400);
 	--rf-node-bg: color-mix(in srgb, var(--blue-shell-card) 92%, var(--color-primary-600) 8%);
 	--rf-node-border: var(--border-strong);
-	--rf-node-shadow: var(--shadow-md);
+	--rf-node-shadow: none;
 	--status-ok-bg: rgba(5, 150, 105, 0.18);
 	--status-ok-border: rgba(52, 211, 153, 0.35);
 	--status-ok-text: var(--text-primary);
@@ -708,7 +876,7 @@ body.th-app-body {
 	min-height: 100%;
 	font-family: var(--font-sans);
 	font-size: var(--text-base);
-	line-height: 1.45;
+	line-height: var(--line-height-body, 1.65);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	text-rendering: optimizeLegibility;
@@ -743,7 +911,7 @@ html.theme-light body.th-app-body {
 	background-attachment: fixed;
 	font-size: var(--text-base);
 	font-weight: var(--weight-normal, 500);
-	line-height: 1.55;
+	line-height: var(--line-height-body, 1.65);
 }
 
 /* —— Primitives —— */
@@ -755,27 +923,27 @@ html.theme-light body.th-app-body {
 	border: 1px solid var(--color-border-default, var(--border-subtle));
 	background: var(--surface-card, var(--color-bg-surface, var(--neutral-0)));
 	color: var(--color-text-primary, var(--text-primary));
-	border-radius: var(--radius-pill);
+	border-radius: var(--radius-sm);
 	padding: 8px 14px;
 	font-size: var(--text-sm);
 	font-weight: var(--weight-semibold);
-	line-height: 1.2;
+	line-height: var(--line-height-tight, 1.35);
 	cursor: pointer;
 	transition:
-		background var(--duration-fast) var(--ease-out),
-		border-color var(--duration-fast) var(--ease-out),
-		transform var(--duration-fast) var(--ease-out),
-		box-shadow var(--duration-fast) var(--ease-out),
-		filter var(--duration-fast) var(--ease-out);
+		background var(--transition-ui),
+		border-color var(--transition-ui),
+		transform var(--transition-ui),
+		box-shadow var(--transition-ui),
+		filter var(--transition-ui);
 	white-space: nowrap;
-	box-shadow: var(--shadow-sm);
+	box-shadow: var(--elevation-control, var(--shadow-sm));
 }
 
 .th-btn:hover:not(:disabled) {
 	background: var(--primary-soft);
 	border-color: color-mix(in srgb, var(--color-primary-500) 28%, var(--color-border-default) 72%);
 	transform: translateY(-1px);
-	box-shadow: var(--shadow-md);
+	box-shadow: var(--elevation-control-hover, var(--elevation-control, var(--shadow-sm)));
 }
 
 .th-btn:disabled {
@@ -787,10 +955,15 @@ html.theme-light body.th-app-body {
 .th-btn:focus-visible,
 .btn:focus-visible,
 .navItem:focus-visible,
-.tab:focus-visible {
-	outline: none;
-	box-shadow: var(--highlight-ring);
-	border-color: var(--highlight-border);
+.tab:focus-visible,
+.th-input:focus-visible,
+.th-select:focus-visible,
+.th-textarea:focus-visible,
+a:focus-visible {
+	outline: var(--focus-ring-width) solid var(--focus-ring-color);
+	outline-offset: var(--focus-ring-offset);
+	box-shadow: none;
+	border-color: var(--highlight-border, var(--focus-ring-color));
 }
 
 ::selection {
@@ -799,15 +972,55 @@ html.theme-light body.th-app-body {
 }
 
 .th-btn--primary {
+	min-height: 42px;
+	padding: 10px 18px;
+	border-radius: var(--radius-cta, 21px);
+	font-weight: var(--weight-label, 600);
 	background: var(--gradient-button-primary);
 	color: #fff;
 	border-color: rgba(var(--primary-rgb), 0.48);
-	box-shadow: var(--shadow-sm), 0 2px 8px rgba(var(--primary-rgb), 0.32);
+	box-shadow: var(--elevation-button, var(--elevation-control, var(--shadow-sm)));
 }
 
 .th-btn--primary:hover:not(:disabled) {
 	filter: brightness(1.05);
-	box-shadow: var(--shadow-md), 0 4px 12px rgba(var(--primary-rgb), 0.32);
+	box-shadow: var(--elevation-button, var(--elevation-control-hover, var(--elevation-control, var(--shadow-sm))));
+}
+
+html.theme-white .th-btn--primary,
+html.theme-light .th-btn--primary {
+	background: var(--btn-primary-bg);
+	border: var(--btn-primary-border);
+	color: #ffffff;
+	box-shadow: var(--btn-primary-shadow);
+	filter: none;
+}
+
+html.theme-white .th-btn--primary:hover:not(:disabled),
+html.theme-light .th-btn--primary:hover:not(:disabled) {
+	background: var(--btn-primary-bg-hover);
+	filter: none;
+	box-shadow: var(--btn-primary-shadow);
+}
+
+html.theme-white .th-btn--primary:active:not(:disabled),
+html.theme-light .th-btn--primary:active:not(:disabled) {
+	background: linear-gradient(180deg, #1a9cc4 0%, #0a6d8c 100%);
+}
+
+html.theme-white .th-btn:not(.th-btn--primary):not(.th-btn--ghost):not(.th-btn--danger),
+html.theme-light .th-btn:not(.th-btn--primary):not(.th-btn--ghost):not(.th-btn--danger) {
+	background: var(--btn-secondary-bg);
+	border: var(--btn-secondary-border);
+	box-shadow: var(--btn-secondary-shadow);
+	color: var(--color-text-primary);
+}
+
+html.theme-white .th-btn:not(.th-btn--primary):not(.th-btn--ghost):not(.th-btn--danger):hover:not(:disabled),
+html.theme-light .th-btn:not(.th-btn--primary):not(.th-btn--ghost):not(.th-btn--danger):hover:not(:disabled) {
+	background: var(--sea-card);
+	border-color: var(--sea-border-hover);
+	box-shadow: var(--btn-secondary-shadow);
 }
 
 .th-btn--cta {
@@ -1069,8 +1282,21 @@ html.theme-dark .th-btn--outline:hover:not(:disabled) {
 	border-radius: var(--radius-sm);
 	padding: 8px 12px;
 	font-size: var(--text-sm);
-	line-height: 1.35;
-	transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+	line-height: var(--line-height-tight, 1.35);
+	box-shadow: var(--elevation-control, none);
+	transition:
+		border-color var(--transition-ui),
+		box-shadow var(--transition-ui),
+		background var(--transition-ui);
+}
+
+html.theme-blue .th-input,
+html.theme-dark .th-input,
+html.theme-blue .th-select,
+html.theme-dark .th-select,
+html.theme-blue .th-textarea,
+html.theme-dark .th-textarea {
+	box-shadow: none;
 }
 
 .th-select {
@@ -1093,37 +1319,35 @@ html.theme-dark .th-btn--outline:hover:not(:disabled) {
 .th-select:focus,
 .th-textarea:focus {
 	outline: none;
-	border-color: var(--color-primary, rgba(var(--primary-rgb), 0.55));
-	box-shadow: var(--shadow-focus);
+	border-color: var(--focus-border-color, var(--color-primary, rgba(var(--primary-rgb), 0.55)));
+	box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
 }
 
 .th-select:focus-visible {
 	outline: none;
-	box-shadow: var(--shadow-focus);
-	border-color: var(--color-primary, var(--primary));
+	border-color: var(--focus-border-color, var(--color-primary, var(--primary)));
+	box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
 }
 
 .th-panel {
-	background: var(--glass-panel-bg);
-	border: 1px solid var(--glass-panel-border);
+	background: var(--card-base-bg, var(--glass-panel-bg));
+	border: var(--card-base-border, 1px solid var(--glass-panel-border));
 	border-radius: var(--radius-lg);
-	box-shadow: var(--glass-panel-shadow);
-	backdrop-filter: blur(12px);
+	box-shadow: var(--card-base-shadow, var(--glass-panel-shadow));
 }
 
 html.theme-white .th-panel,
 html.theme-light .th-panel {
-	background: var(--surface-card-gradient, var(--glass-panel-bg));
-	border-color: rgba(71, 85, 105, 0.2);
-	box-shadow: var(--shadow-raised, var(--glass-panel-shadow));
+	background: var(--card-analytics-bg, var(--card-base-bg, var(--surface-card)));
+	border: var(--card-base-border, 1px solid var(--sea-border-soft, var(--sea-border)));
+	box-shadow: var(--card-analytics-shadow, var(--card-base-shadow));
 }
 
 html.theme-blue .th-panel,
 html.theme-dark .th-panel {
 	background: var(--surface-card-gradient, var(--glass-panel-bg));
-	border-color: rgba(var(--blue-highlight-rgb), 0.32);
-	box-shadow: var(--shadow-raised, var(--glass-panel-shadow));
-	backdrop-filter: blur(16px) saturate(1.12);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: none;
 }
 
 .th-page-header {
@@ -1132,17 +1356,23 @@ html.theme-dark .th-panel {
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: var(--space-4);
-	margin-bottom: var(--space-5);
+	margin-bottom: 0;
 }
 
 .th-page-header h1,
 .th-page-header h2 {
 	margin: 0;
-	font-size: var(--text-display, 3rem);
+	font-size: var(--text-page-title, var(--text-2xl, 2rem));
 	font-weight: var(--weight-bold, 750);
 	letter-spacing: var(--tracking-tight);
-	line-height: 1.12;
+	line-height: 1.25;
 	color: var(--text-heading, var(--text-primary));
+}
+
+.th-page-header h2 {
+	font-size: var(--text-page-title, var(--text-2xl, 2rem));
+	font-weight: var(--weight-bold, 750);
+	line-height: 1.25;
 }
 
 html.theme-white .th-page-header h1,
@@ -1152,11 +1382,17 @@ html.theme-light .th-page-header h2 {
 	color: var(--color-primary-ink, var(--text-heading, var(--text-primary)));
 }
 
+html.theme-white .th-page-header h2,
+html.theme-light .th-page-header h2,
+html.theme-white .cardTitle strong,
+html.theme-light .cardTitle strong {
+	color: var(--color-text-section, var(--sea-section));
+}
+
 html.theme-blue .th-page-header h1,
 html.theme-dark .th-page-header h1,
 html.theme-blue .th-page-header h2,
 html.theme-dark .th-page-header h2 {
-	font-size: var(--text-2xl, 2rem);
 	color: var(--color-text-primary);
 }
 
@@ -1181,10 +1417,10 @@ html.theme-light .panelHeader h2 {
 }
 
 .th-page-header .th-page-subtitle {
-	margin-top: var(--space-2);
+	margin-top: var(--space-1, 4px);
 	font-size: var(--text-md, 0.9375rem);
 	font-weight: var(--weight-normal, 500);
-	line-height: 1.55;
+	line-height: var(--line-height-dense, 1.55);
 	color: var(--text-secondary, var(--text-muted));
 	max-width: 52ch;
 }
@@ -1231,7 +1467,6 @@ html.theme-dark .th-page-header .th-page-subtitle {
 	padding: var(--space-3) var(--space-4);
 	border-bottom: 1px solid var(--border-subtle);
 	background: var(--topbar-bg);
-	backdrop-filter: blur(14px);
 	box-shadow: var(--shadow-sm);
 	min-height: 56px;
 }
@@ -1240,12 +1475,12 @@ html.theme-white .topbar.th-topbar,
 html.theme-light .topbar.th-topbar {
 	display: grid;
 	grid-template-columns: auto 1fr auto;
-	border: 1px solid var(--color-border-subtle);
-	border-bottom: 1px solid var(--color-border-subtle);
+	border: var(--topbar-border, 1px solid var(--sea-border-soft));
+	border-bottom: var(--topbar-border, 1px solid var(--sea-border-soft));
 	border-radius: var(--radius-md);
-	background: var(--color-bg-surface, #ffffff);
+	background: var(--surface-header-gradient);
 	backdrop-filter: none;
-	box-shadow: var(--shadow-raised);
+	box-shadow: var(--topbar-shadow, var(--elevation-topbar));
 	min-height: auto;
 }
 
@@ -1253,6 +1488,7 @@ html.theme-blue .th-topbar,
 html.theme-dark .th-topbar {
 	border-bottom-color: rgba(var(--primary-rgb), 0.24);
 	box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(var(--blue-glow-rgb), 0.1);
+	color: var(--color-text-primary);
 }
 
 .th-theme-toggle {
@@ -1370,23 +1606,25 @@ html.theme-dark .th-theme-toggle button[aria-pressed='true'] {
 	padding: var(--space-1);
 	border-radius: var(--radius-md);
 	border: 1px solid var(--border-subtle);
-	background: var(--surface-card, var(--bg-elevated));
-	box-shadow: var(--shadow-lg);
+	background: color-mix(in srgb, var(--surface-card, var(--bg-elevated)) 88%, transparent);
+	box-shadow: var(--elevation-control-dark, var(--elevation-control, var(--shadow-lg)));
+	backdrop-filter: var(--floating-blur);
+	-webkit-backdrop-filter: var(--floating-blur);
 	z-index: 8200;
-	animation: th-menu-in var(--duration-normal) var(--ease-out);
+	animation: th-menu-in var(--duration-ui) var(--ease-standard);
 }
 
 .th-overflow-menu-panel--fixed {
 	z-index: 12050;
 	max-height: min(80vh, 520px);
 	overflow: auto;
-	box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-subtle);
+	box-shadow: var(--elevation-control-dark, var(--elevation-control, var(--shadow-lg))), 0 0 0 1px var(--border-subtle);
 }
 
 @keyframes th-menu-in {
 	from {
 		opacity: 0;
-		transform: translateY(-4px);
+		transform: translateY(-2px);
 	}
 	to {
 		opacity: 1;
@@ -1406,7 +1644,7 @@ html.theme-dark .th-theme-toggle button[aria-pressed='true'] {
 	font-size: var(--text-sm);
 	font-weight: var(--weight-semibold);
 	cursor: pointer;
-	transition: background var(--duration-fast) var(--ease-out);
+	transition: background var(--transition-ui);
 }
 
 .th-overflow-menu-item:hover:not(:disabled),
